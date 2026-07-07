@@ -1,0 +1,18 @@
+# Local / single-node deployment of the Universe Experience Platform.
+#   docker compose up --build      → http://localhost:8000
+services:
+  uep:
+    build: .
+    image: universe-experience-platform:latest
+    ports:
+      - "8000:8000"
+    environment:
+      # set to "live" to refresh from real archives (Gaia/2MRS/exoplanets) on start
+      UEP_INGEST: "sample"
+    volumes:
+      # persist the curated/delivery data lake across restarts
+      - uep-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  uep-data:

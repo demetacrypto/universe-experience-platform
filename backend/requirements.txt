@@ -1,0 +1,15 @@
+# Science & data backend
+numpy>=1.26
+pandas>=2.0
+pyarrow>=14
+scipy>=1.11
+astropy>=6.0
+astroquery>=0.4.7
+healpy>=1.16
+
+# API
+fastapi>=0.110
+uvicorn[standard]>=0.27
+
+# Test
+pytest>=8.0

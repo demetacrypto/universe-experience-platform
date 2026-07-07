@@ -1,0 +1,17 @@
+# Generated data lake contents (reproducible via backend/pipeline.py)
+data/raw/*
+data/curated/*
+data/delivery/*
+!data/raw/.gitkeep
+!data/curated/.gitkeep
+!data/delivery/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+
+# Private planning doc — not part of the open-source release
+*.docx
