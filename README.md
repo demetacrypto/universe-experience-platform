@@ -12,6 +12,12 @@
 
 *Fly from Earth's city lights, past Saturn's rings and the real Gaia starfield, through nebulae and galaxies, out to the cosmic web and the first light of the Big Bang — with every object honestly labelled as measured, derived, simulated, or illustrative.*
 
+![Earth at night with Venus eclipsing the Sun](docs/screenshots/earth.jpg)
+
+| ![Saturn and its moons](docs/screenshots/saturn.jpg) | ![Sgr A* — Doppler-beamed accretion disk with lensed arcs](docs/screenshots/black-hole.jpg) | ![Andromeda with dust lanes and luminous core](docs/screenshots/andromeda.jpg) |
+|:--:|:--:|:--:|
+| *Saturn, in-app photo mode* | *Sgr A\* — lensed accretion disk* | *Andromeda (procedural model)* |
+
 </div>
 
 > **The scientific contract:** everything visible is either **measured** from an
@@ -56,7 +62,7 @@
 
 **Provenance & rights everywhere** — every object carries a `source_type` / `confidence` / `credit` payload; an in-app **Credits** ledger lists every required acknowledgement.
 
-> 📸 *Add screenshots/GIFs to `docs/screenshots/` and embed them here — the Solar System, the HR diagram, a galaxy field with central black holes, and the CMB make great hero shots.*
+> 📸 All screenshots were captured with the app's own **photo mode** (`P`, then `S`).
 
 ---
 
