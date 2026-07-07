@@ -63,7 +63,7 @@
 ## 🚀 Quick start
 
 ```bash
-git clone https://github.com/<you>/universe-experience-platform.git
+git clone https://github.com/demetacrypto/universe-experience-platform.git
 cd universe-experience-platform
 
 python3 -m venv .venv && source .venv/bin/activate
