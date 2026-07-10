@@ -31,10 +31,12 @@ REAL_ANCHORS = [
 
 
 def generate(n: int = 5000, radius_pc: float = 200.0, seed: int = 42) -> pd.DataFrame:
+    if n < 1:
+        raise ValueError("sample catalogue size must be at least one")
     rng = np.random.default_rng(seed)
 
     rows = []
-    for (name, ra, dec, dist, plx, g, bprp, simbad) in REAL_ANCHORS:
+    for (name, ra, dec, dist, plx, g, bprp, simbad) in REAL_ANCHORS[:n]:
         rows.append(dict(source_id=f"ANCHOR-{name.replace(' ', '_')}", ra=ra, dec=dec,
                          parallax=plx, phot_g_mean_mag=g, bp_rp=bprp,
                          distance_pc=dist, name=name, simbad=simbad, is_anchor=True))

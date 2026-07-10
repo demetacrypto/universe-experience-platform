@@ -12,6 +12,22 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.egg-info/
+.coverage
+coverage/
+
+# Frontend tooling / browser QA
+node_modules/
+.playwright-cli/
+output/
+test-results/
+playwright-report/
+
+# Local configuration and OS files
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
 
 # Private planning doc — not part of the open-source release
 *.docx

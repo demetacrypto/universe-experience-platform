@@ -34,7 +34,7 @@ def list_adapters() -> list:
     return [a.info() for a in ADAPTERS.values()]
 
 
-def resolve(name: str, prefer: str | None = None, timeout: int = 30) -> Optional[ResolvedObject]:
+def resolve(name: str, prefer: str | None = None, timeout: int = 8) -> Optional[ResolvedObject]:
     """Federated resolve: return the first archive that recognises `name`."""
     order = ([prefer] if prefer else []) + [k for k in _RESOLVE_ORDER if k != prefer]
     for key in order:

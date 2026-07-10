@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { animatedCoronaMaterial, atmosphereMaterial } from "./shaders.js";
 import { glowTexture } from "./solarsystem.js";
+import { disposeObject3D } from "./scene-utils.js";
 
 function starColor(teff) {
   if (!teff) return new THREE.Color("#ffd9a0");
@@ -37,8 +38,12 @@ export class ExoExplorer {
   buildSystem(i) {
     this.index = i;
     // clear previous (keep lights)
-    for (const c of [...this.group.children]) if (!c.isLight) this.group.remove(c);
-    this.pickables = []; this.planets = [];
+    disposeObject3D(this.group);
+    for (const child of [...this.group.children]) {
+      if (child.isLight) continue;
+      this.group.remove(child);
+    }
+    this.pickables = []; this.planets = []; this.hz = null;
     const sys = this.systems[i];
 
     // host star

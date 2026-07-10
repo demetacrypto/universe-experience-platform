@@ -2,7 +2,7 @@
 // drawn on a canvas from the catalogue data — a Hertzsprung–Russell diagram for
 // the Gaia stars, a transit light curve for a selected exoplanet (from measured
 // period/radii), and a redshift histogram for the cosmic web.
-const AX = "#8aa0c0", GRID = "rgba(120,160,220,0.14)", ACC = "#6cc7ff", TXT = "#dce6f5";
+const AX = "#8aa0c0", GRID = "rgba(120,160,220,0.14)", ACC = "#6cc7ff";
 const R_EARTH_OVER_R_SUN = 0.009168, R_SUN_AU = 0.00465047;
 
 function setup(canvas) {

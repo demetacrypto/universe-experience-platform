@@ -1,0 +1,68 @@
+import globals from "globals";
+
+export default [
+  {
+    ignores: ["node_modules/**", "output/**", "data/**", ".playwright-cli/**"],
+  },
+  {
+    files: ["web/*.js", "tests/**/*.js", "playwright.config.js", "eslint.config.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: { ...globals.browser, ...globals.node },
+    },
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
+    },
+    rules: {
+      "constructor-super": "error",
+      "for-direction": "error",
+      "getter-return": "error",
+      "no-async-promise-executor": "error",
+      "no-class-assign": "error",
+      "no-compare-neg-zero": "error",
+      "no-const-assign": "error",
+      "no-dupe-args": "error",
+      "no-dupe-class-members": "error",
+      "no-dupe-else-if": "error",
+      "no-dupe-keys": "error",
+      "no-duplicate-case": "error",
+      "no-empty-character-class": "error",
+      "no-ex-assign": "error",
+      "no-extra-boolean-cast": "error",
+      "no-fallthrough": "error",
+      "no-func-assign": "error",
+      "no-import-assign": "error",
+      "no-irregular-whitespace": "error",
+      "no-loss-of-precision": "error",
+      "no-misleading-character-class": "error",
+      "no-new-native-nonconstructor": "error",
+      "no-obj-calls": "error",
+      "no-promise-executor-return": "error",
+      "no-prototype-builtins": "error",
+      "no-self-assign": "error",
+      "no-self-compare": "error",
+      "no-setter-return": "error",
+      "no-shadow-restricted-names": "error",
+      "no-sparse-arrays": "error",
+      "no-this-before-super": "error",
+      "no-undef": "error",
+      "no-unexpected-multiline": "error",
+      "no-unreachable": "error",
+      "no-unreachable-loop": "error",
+      "no-unsafe-finally": "error",
+      "no-unsafe-negation": "error",
+      "no-unsafe-optional-chaining": "error",
+      "no-unused-labels": "error",
+      "no-unused-private-class-members": "error",
+      "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "caughtErrors": "none" }],
+      "no-useless-backreference": "error",
+      "no-useless-catch": "error",
+      "no-useless-escape": "error",
+      "no-with": "error",
+      "require-yield": "error",
+      "use-isnan": "error",
+      "valid-typeof": "error"
+    }
+  }
+];

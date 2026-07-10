@@ -12,7 +12,7 @@ import json
 import math
 from pathlib import Path
 
-from .provenance import SourceType, ConfidenceClass, VisualisationMode
+from .provenance import SourceType, ConfidenceClass, VisualisationMode, source_metadata
 
 # --------------------------------------------------------------------------- #
 # JPL approximate Keplerian elements (J2000), and their per-century rates.
@@ -86,24 +86,31 @@ BODIES = {
         "palette": {"base": "#d8b48a", "band1": "#b07a4a", "band2": "#e8d3b0", "spot": "#c1503a"},
         "rings": {"inner": 1.4, "outer": 1.8, "opacity": 0.10, "color": "#9c8a72"},
         "facts": {"day_length": "9.9 hours", "year_length": "11.9 years",
-                  "mean_temp": "-110 °C", "gravity": "24.79 m/s²", "moons": 95,
+                  "mean_temp": "-110 °C", "gravity": "24.79 m/s²", "moons": 101,
+                  "moons_as_of": "March 2026", "moons_status": "IAU-recognized",
                   "note": "Largest planet; the Great Red Spot is a centuries-old storm."},
+        "moon_count_source": "https://science.nasa.gov/jupiter/jupiter-moons/",
     },
     "Saturn": {
         "type": "gas_giant", "radius_km": 58232, "rotation_h": 10.7, "tilt_deg": 26.73,
         "palette": {"base": "#e6d3a3", "band1": "#cdb27a", "band2": "#f2e6c2", "spot": "#d8b884"},
         "rings": {"inner": 1.2, "outer": 2.3, "opacity": 0.85, "color": "#d8c9a3"},
         "facts": {"day_length": "10.7 hours", "year_length": "29.4 years",
-                  "mean_temp": "-140 °C", "gravity": "10.44 m/s²", "moons": 146,
+                  "mean_temp": "-140 °C", "gravity": "10.44 m/s²", "moons": 274,
+                  "moons_as_of": "March 2025", "moons_status": "confirmed",
                   "note": "Famous for its spectacular ring system of ice and rock."},
+        "moon_count_source": "https://science.nasa.gov/saturn/moons/",
     },
     "Uranus": {
         "type": "ice_giant", "radius_km": 25362, "rotation_h": -17.24, "tilt_deg": 97.77,
         "palette": {"base": "#a7dbe0", "band1": "#8fcfd6", "band2": "#c4ecef", "spot": "#9bd5db"},
         "rings": {"inner": 1.6, "outer": 2.0, "opacity": 0.22, "color": "#7fa9ad"},
         "facts": {"day_length": "17.2 hours", "year_length": "84 years",
-                  "mean_temp": "-195 °C", "gravity": "8.69 m/s²", "moons": 28,
+                  "mean_temp": "-195 °C", "gravity": "8.69 m/s²", "moons": 29,
+                  "moons_as_of": "August 2025",
+                  "moons_status": "28 known plus S/2025 U1 reported by JWST (science in progress)",
                   "note": "Rolls on its side (98° tilt); coldest planetary atmosphere."},
+        "moon_count_source": "https://science.nasa.gov/blogs/webb/2025/08/19/new-moon-discovered-orbiting-uranus-using-nasas-webb-telescope/",
     },
     "Neptune": {
         "type": "ice_giant", "radius_km": 24622, "rotation_h": 16.11, "tilt_deg": 28.32,
@@ -268,6 +275,7 @@ def now_jd() -> float:
 
 def build_payload(release: str) -> dict:
     jd = now_jd()
+    source = source_metadata("jpl_elements")
     provenance = {
         "source_type": SourceType.DERIVED.value,
         "confidence": ConfidenceClass.INFERRED.value,
@@ -275,7 +283,11 @@ def build_payload(release: str) -> dict:
         "distance_method": "ephemeris_keplerian",
         "model": "JPL approximate Keplerian elements (Standish, valid 1800–2050)",
         "credit": "Orbital elements & body data: NASA/JPL Solar System Dynamics",
-        "dataset_release": release,
+        "dataset_release": source["dataset_release"],
+        "delivery_release": release,
+        "data_rights": source["data_rights"],
+        "license": source["license"],
+        "source_as_of": "Volatile satellite counts checked against NASA pages through April 2026",
     }
 
     def _lm(rows):
@@ -298,6 +310,7 @@ def build_payload(release: str) -> dict:
             "radius_km": b["radius_km"], "rotation_h": b["rotation_h"], "tilt_deg": b["tilt_deg"],
             "palette": b["palette"], "atmosphere": b.get("atmosphere"),
             "rings": b.get("rings"), "moons": body_moons,
+            "moon_count_source": b.get("moon_count_source"),
             "landmarks": _lm(LANDMARKS.get(name, [])),
             "facts": {**EXTRA_FACTS.get(name, {}), **b["facts"]},
         }

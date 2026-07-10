@@ -38,6 +38,7 @@ def test_golden_sgr_a_star_mass_and_rs():
     sgr = next(o for o in bh["objects"] if o["name"] == "Sgr A*")
     assert abs(sgr["mass_msun"] - 4.297e6) / 4.297e6 < 0.05
     assert 1.0e7 < sgr["schwarzschild_km"] < 1.5e7      # ~1.27e7 km
+    assert 4.5 < sgr["shadow_diameter_rs"] < 5.8
 
 
 def test_golden_cmb_parameters():
@@ -48,7 +49,8 @@ def test_golden_cmb_parameters():
 
 def test_golden_trappist1_habitable_zone():
     """TRAPPIST-1 e should fall inside the conservative habitable zone."""
-    ex = exoplanets.build_payload("G")
+    # Golden tests must be deterministic and never contact a live archive.
+    ex = exoplanets.build_payload("G", prefer_live=False)
     sys_ = next((s for s in ex["systems"] if s["hostname"] == "TRAPPIST-1"), None)
     if sys_ is None:                                     # archive offline -> sample lacks full set
         return

@@ -1,5 +1,6 @@
-// Stellar neighbourhood layer (L1): the real Gaia field as additive star
-// sprites, with confidence colouring and per-star uncertainty visualisation.
+// Stellar neighbourhood layer (L1): Gaia measurements when live ingestion
+// succeeds, otherwise an explicitly procedural sample. Both render as additive
+// sprites with confidence colouring and per-star uncertainty visualisation.
 import * as THREE from "three";
 
 const CONF_COLOR = {

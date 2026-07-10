@@ -1,11 +1,13 @@
 // Resolved-galaxy layer (L3): procedural models of famous galaxies matched to
-// their measured morphology. Two modes: a single-galaxy explorer, and a "field"
-// view showing all galaxies together in 3-D. Each galaxy carries a marked
-// central supermassive black hole. Identity/distance/size/type are measured;
-// the star distribution and 3-D arrangement are declared procedural priors.
+// their observed morphology. Two modes: a single-galaxy explorer, and a "field"
+// view showing all galaxies together in 3-D. Published black-hole detections
+// may carry a central marker; non-detections and upper limits never do.
+// Distances, sizes, star counts and central masses are heterogeneous literature
+// estimates; the star distribution and 3-D arrangement are procedural priors.
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { glowTexture } from "./solarsystem.js";
+import { disposeObject3D } from "./scene-utils.js";
 
 const R = 34;                 // disk scene radius (single mode)
 const TWO_PI = Math.PI * 2;
@@ -15,11 +17,28 @@ const FIELD_POS = [
   [42, -22, 44], [-32, 26, 58], [78, -6, 26],
 ];
 
+export function centralBlackHoleIsUpperLimit(blackHole) {
+  if (!blackHole) return false;
+  const status = String(blackHole.status || "").toLowerCase();
+  const note = String(blackHole.note || "").toLowerCase();
+  return blackHole.detected === false
+    || status === "upper_limit"
+    || status === "non_detection"
+    || /upper limit|no .*detected|non[- ]detection/.test(note);
+}
+
+export function centralBlackHoleIsDetected(blackHole) {
+  if (!blackHole || centralBlackHoleIsUpperLimit(blackHole)) return false;
+  return blackHole.detected !== false
+    && Number.isFinite(Number(blackHole.mass_msun))
+    && Number(blackHole.mass_msun) > 0;
+}
+
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function gauss(rng) { let u = 0, v = 0; while (!u) u = rng(); while (!v) v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TWO_PI * v); }
 
 export class GalaxyScene {
-  constructor(data) {
+  constructor(data, initialIndex = 0) {
     this.data = data;
     this.objects = data.objects;
     this.group = new THREE.Group();
@@ -27,7 +46,7 @@ export class GalaxyScene {
     this.field = false;
     this.disks = [];      // {disk, edgeOn}
     this.bhRings = [];     // camera-facing BH accretion rings
-    this.build(0);
+    this.build(initialIndex);
   }
 
   _makeGalaxy(gx, Rg, N, opts = {}) {
@@ -132,8 +151,8 @@ export class GalaxyScene {
     root.add(disk);
     this.disks.push({ disk, edgeOn });
 
-    // --- central supermassive black hole marker ---
-    if (gx.central_bh) {
+    // --- marker only for a published central black-hole detection ---
+    if (centralBlackHoleIsDetected(gx.central_bh)) {
       const bh = gx.central_bh, big = bh.mass_msun > 1e6;
       const bhR = Rg * (big ? 0.05 : 0.035);
       const sphere = new THREE.Mesh(new THREE.SphereGeometry(bhR, 16, 16),
@@ -169,7 +188,8 @@ export class GalaxyScene {
   }
 
   _reset() {
-    for (const c of [...this.group.children]) this.group.remove(c);
+    disposeObject3D(this.group);
+    this.group.clear();
     this.disks = []; this.bhRings = []; this.pickables = [];
   }
 

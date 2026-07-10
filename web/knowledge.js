@@ -129,7 +129,7 @@ export const KNOWLEDGE = {
     scale: "The entire seven-planet system would fit six times over inside Mercury's orbit.",
   },
   "Proxima Cen": {
-    story: "The closest star to the Sun — 4.24 light-years — hides a planet at least 1.07 Earth masses in its habitable zone. But Proxima is a violent flare star: Proxima b receives X-ray bursts hundreds of times stronger than Earth does, and any life would need shelter or a magnetic shield.",
+    story: "The closest star to the Sun — 4.24 light-years — hosts a planet whose radial-velocity signal implies a minimum mass of about 1.07 Earth masses. Its radius has not been measured. The orbit falls within a modelled habitable-zone boundary, but Proxima is a violent flare star and habitability remains unknown.",
     dyk: "Today's fastest spacecraft would need ~70,000 years to reach Proxima b.",
     scale: "Proxima b's year lasts just 11.2 Earth days — its 'habitable zone' hugs a star 600× dimmer than the Sun.",
   },
@@ -188,7 +188,7 @@ export const KNOWLEDGE = {
   "Carina Nebula": {
     story: "Four times larger than Orion, the Carina Nebula cradles some of the most massive stars known — including Eta Carinae, a 100-solar-mass monster that erupted in 1843 to become the sky's second-brightest star, and which will one day die as a supernova visible in daylight.",
     dyk: "JWST's first-release image 'Cosmic Cliffs' is a wall of Carina's gas 7 light-years tall.",
-    scale: "Over 300 light-years across — one of the largest star-forming regions in the Milky Way.",
+    scale: "Roughly 230 light-years across — one of the largest star-forming regions in the Milky Way.",
   },
   "Helix Nebula": {
     story: "The Helix is a preview of our own ending: a Sun-like star that gently exhaled its outer layers, leaving a white-dwarf ember lighting up the expanding shroud. Nicknamed the 'Eye of God', it is one of the closest planetary nebulae — and in ~5 billion years, the Sun will build one much like it.",
@@ -204,11 +204,11 @@ export const KNOWLEDGE = {
   // ---- galaxies -----------------------------------------------------------------
   "Milky Way": {
     story: "Our home: a barred spiral of 100–400 billion stars, 100,000+ light-years across, wrapped in a dark-matter halo ten times heavier than everything we can see. The Sun rides a spiral arm 27,000 light-years out, completing one galactic orbit every 230 million years — the last time we were here, dinosaurs were young.",
-    dyk: "The Milky Way and Andromeda are falling toward each other and will merge in ~4.5 billion years into one giant elliptical.",
+    dyk: "Andromeda is approaching, but a future Milky Way merger is model-sensitive: simulations allow a close encounter or merger in several billion years, while current motion uncertainties leave other outcomes possible.",
     scale: "If the Solar System were a coin, the Milky Way would be the width of a continent.",
   },
   "Andromeda": {
-    story: "At 2.5 million light-years, Andromeda is the most distant object visible to the naked eye — the light hitting your retina left before humans existed. A trillion stars strong, it is blueshifted: one of the very few galaxies moving toward us, at 110 km/s, on a slow-motion collision course with home.",
+    story: "At 2.5 million light-years, Andromeda is the most distant object visible to the naked eye — the light hitting your retina left before humans existed. A trillion stars strong, it is blueshifted and approaching the Milky Way, but the timing and even outcome of a future close encounter depend on uncertain transverse motions and Local Group modelling.",
     dyk: "In 1920 astronomers still debated whether Andromeda was a nearby cloud or a separate 'island universe' — Edwin Hubble settled it in 1923 with a single star.",
     scale: "On the sky, Andromeda spans six full Moons — most of it too faint for the eye.",
   },
@@ -220,17 +220,17 @@ export const KNOWLEDGE = {
   "Whirlpool": {
     story: "In 1845, using a 72-inch metal mirror in the Irish countryside, Lord Rosse sketched M51's swirling arms — the first spiral structure ever seen in the heavens, decades before anyone knew what galaxies were. Its perfect spiral is powered by the small companion galaxy tugging at its disk.",
     dyk: "The Whirlpool's arms are compression waves: stars pass through them like traffic through a jam.",
-    scale: "31 million light-years away — the light you see left during Earth's Oligocene epoch.",
+    scale: "About 23 million light-years away — the light you see left during Earth's Miocene epoch.",
   },
   "Sombrero": {
-    story: "A brilliant white core wrapped in a dark brim of dust, the Sombrero hides a 9-billion-solar-mass black hole — one of the heaviest in our neighbourhood — and swarms of ~2,000 globular clusters, ten times more than the Milky Way's retinue.",
+    story: "A brilliant white core wrapped in a dark brim of dust, the Sombrero hides a roughly billion-solar-mass black hole — one of the heaviest in our neighbourhood — and swarms of ~2,000 globular clusters, ten times more than the Milky Way's retinue.",
     dyk: "The Sombrero is drifting away from us at over 1,000 km/s, carried by cosmic expansion.",
     scale: "Its halo suggests the Sombrero may be an elliptical galaxy wearing a spiral disguise.",
   },
   "Centaurus A": {
     story: "Centaurus A is a collision still in progress: an elliptical giant digesting a spiral galaxy, its middle slashed by the victim's dust lane. Its central black hole fires plasma jets a million light-years long — at radio wavelengths, one of the largest objects in the sky.",
     dyk: "If your eyes saw radio waves, Centaurus A's jets would appear 20× wider than the full Moon.",
-    scale: "The nearest active galactic nucleus to Earth — a laboratory for black-hole physics 12 million light-years away.",
+    scale: "The nearest active galactic nucleus to Earth — a laboratory for black-hole physics about 13 million light-years away.",
   },
   "M87": {
     story: "The giant of the Virgo cluster: several trillion stars in a featureless golden ball, 15,000 globular clusters, and at its core the first black hole humanity ever photographed. Its jet of plasma, discovered in 1918, spears 5,000 light-years out at 99.99% the speed of light.",
@@ -259,12 +259,12 @@ export const KNOWLEDGE = {
 
   // ---- theoretical ---------------------------------------------------------------------
   "Wormhole": {
-    story: "Fold a sheet of paper and punch through: that is the wormhole idea — a tunnel connecting distant points of spacetime, allowed (on paper) by Einstein's equations since 1935. Morris and Thorne showed in 1988 that keeping one open requires 'exotic matter' with negative energy — something never observed in bulk.",
+    story: "Fold a sheet of paper and punch through: that is the wormhole idea. Morris and Thorne's 1988 traversable model is a hypothetical tunnel held open by exotic negative-energy matter. It is distinct from the 1935 Einstein–Rosen bridge, which is non-traversable.",
     dyk: "The wormhole visuals in the film Interstellar were computed with physicist Kip Thorne's equations — and produced publishable science.",
     scale: "Entirely theoretical: unlike everything else in this atlas, no wormhole has ever been detected.",
   },
-  "Traversable wormhole (Einstein–Rosen bridge)": {
-    story: "Fold a sheet of paper and punch through: that is the wormhole idea — a tunnel connecting distant points of spacetime, allowed (on paper) by Einstein's equations since 1935. Morris and Thorne showed in 1988 that keeping one open requires 'exotic matter' with negative energy — something never observed in bulk.",
+  "Morris–Thorne traversable wormhole": {
+    story: "Fold a sheet of paper and punch through: that is the wormhole idea. Morris and Thorne's 1988 traversable model is a hypothetical tunnel held open by exotic negative-energy matter. It is distinct from the 1935 Einstein–Rosen bridge, which is non-traversable.",
     dyk: "The wormhole visuals in the film Interstellar were computed with physicist Kip Thorne's equations — and produced publishable science.",
     scale: "Entirely theoretical: unlike everything else in this atlas, no wormhole has ever been detected.",
   },

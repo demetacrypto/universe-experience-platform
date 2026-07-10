@@ -50,6 +50,8 @@ class Provenance:
     license: Optional[str] = None
     credit: Optional[str] = None
     dataset_release: Optional[str] = None                # immutable, citeable release tag
+    delivery_release: Optional[str] = None               # local build / deployment label
+    data_rights: Optional[str] = None
     notes: Optional[str] = None
 
     def to_dict(self) -> dict:
@@ -66,6 +68,8 @@ ARCHIVE_CREDITS = {
     "gaia": {
         "credit": "ESA/Gaia/DPAC",
         "license": "Gaia Data is released under CC BY-SA 3.0 IGO; cite the DR3 papers.",
+        "dataset_release": "Gaia DR3",
+        "data_rights": "public",
         "ack": "This work has made use of data from the ESA mission Gaia, processed by "
                "the Gaia Data Processing and Analysis Consortium (DPAC).",
     },
@@ -97,5 +101,72 @@ ARCHIVE_CREDITS = {
 }
 
 
+# Source releases are distinct from a UEP delivery build.  A local CI SHA or
+# operator label belongs in ``delivery_release``; ``dataset_release`` identifies
+# the upstream catalogue, published compilation, or declared procedural prior.
+SOURCE_METADATA = {
+    "sample_stars": {
+        "dataset_release": "UEP procedural star sample v1",
+        "data_rights": "public",
+        "license": "CC0 (synthetic)",
+    },
+    "jpl_elements": {
+        "dataset_release": "JPL approximate Keplerian elements (Standish; 1800-2050)",
+        "data_rights": "public",
+        "license": "NASA/JPL public information",
+    },
+    "exoplanet_live": {
+        "dataset_release": "NASA Exoplanet Archive ps table (live query)",
+        "data_rights": "public",
+        "license": "NASA Exoplanet Archive public data; acknowledgement required",
+    },
+    "exoplanet_snapshot": {
+        "dataset_release": "UEP exoplanet snapshot v1 (NASA Exoplanet Archive values)",
+        "data_rights": "public",
+        "license": "NASA Exoplanet Archive public data; acknowledgement required",
+    },
+    "2mrs": {
+        "dataset_release": "2MRS J/ApJS/199/26/table3 (Huchra et al. 2012)",
+        "data_rights": "public",
+        "license": "VizieR/CDS catalogue terms; attribution required",
+    },
+    "cosmic_prior": {
+        "dataset_release": "UEP procedural cosmic-web prior v1",
+        "data_rights": "public",
+        "license": "CC0 (synthetic)",
+    },
+    "eht_compilation": {
+        "dataset_release": "EHT published parameters (M87* 2019; Sgr A* 2022)",
+        "data_rights": "public",
+        "license": "Published literature values; cite the EHT Collaboration",
+    },
+    "nebula_compilation": {
+        "dataset_release": "UEP nebula literature compilation v1",
+        "data_rights": "public",
+        "license": "Published literature estimates; source imagery terms remain separate",
+    },
+    "galaxy_compilation": {
+        "dataset_release": "UEP resolved-galaxy literature compilation v1",
+        "data_rights": "public",
+        "license": "Published literature estimates; source imagery terms remain separate",
+    },
+    "cmb_compilation": {
+        "dataset_release": "Planck 2018 cosmology with COBE/WMAP/Planck CMB parameters",
+        "data_rights": "public",
+        "license": "Mission data acknowledgement required",
+    },
+}
+
+
 def credit_for(archive: str) -> dict:
     return ARCHIVE_CREDITS.get(archive.lower(), {"credit": archive, "license": "unknown", "ack": ""})
+
+
+def source_metadata(source: str) -> dict:
+    """Return a copy of the immutable registry entry for a known public source."""
+    if source == "gaia":
+        return dict(ARCHIVE_CREDITS["gaia"])
+    try:
+        return dict(SOURCE_METADATA[source])
+    except KeyError as exc:
+        raise ValueError(f"Unknown provenance source {source!r}; rights cannot be inferred") from exc

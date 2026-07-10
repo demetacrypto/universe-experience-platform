@@ -103,7 +103,8 @@ def test_crossmatch_resolver():
 def test_curated_has_full_provenance():
     df = pd.read_parquet(CURATED)
     required = {"source_type", "confidence", "visualisation_mode", "distance_method",
-                "dataset_release", "credit", "gx_pc", "gy_pc", "gz_pc", "healpix"}
+                "dataset_release", "delivery_release", "data_rights", "credit",
+                "gx_pc", "gy_pc", "gz_pc", "healpix"}
     assert required.issubset(df.columns)
     # No renderable entity without a declared source type (the scientific contract).
     assert df["source_type"].notna().all()
@@ -151,6 +152,15 @@ def test_solar_system_payload_complete():
     assert saturn["rings"] and saturn["rings"]["outer"] > saturn["rings"]["inner"]
     earth = next(pl for pl in p["planets"] if pl["name"] == "Earth")
     assert any(m["name"] == "Moon" for m in earth["moons"])
+    by_name = {planet["name"]: planet for planet in p["planets"]}
+    assert by_name["Jupiter"]["facts"]["moons"] == 101
+    assert by_name["Jupiter"]["facts"]["moons_as_of"] == "March 2026"
+    assert by_name["Saturn"]["facts"]["moons"] == 274
+    assert by_name["Saturn"]["facts"]["moons_as_of"] == "March 2025"
+    assert by_name["Uranus"]["facts"]["moons"] == 29
+    assert "science in progress" in by_name["Uranus"]["facts"]["moons_status"].lower()
+    assert p["provenance"]["dataset_release"].startswith("JPL")
+    assert p["provenance"]["delivery_release"] == "TEST"
 
 
 @pytest.mark.skipif(not (DELIVERY / "solar_system.json").exists(), reason="run pipeline first")
@@ -172,6 +182,37 @@ def test_equilibrium_temp_and_hz_logic():
     assert exoplanets._planet_color(1.0, 280) == "#4fae6a"   # temperate rock
 
 
+def test_offline_exoplanet_snapshot_keeps_mass_radius_and_models_distinct():
+    payload = exoplanets.build_payload("TEST", prefer_live=False)
+    proxima = next(
+        planet
+        for system in payload["systems"]
+        for planet in system["planets"]
+        if planet["name"] == "Proxima Cen b"
+    )
+
+    assert proxima["radius_earth"] is None
+    assert proxima["mass_earth"] == pytest.approx(1.07)
+    assert proxima["mass_provenance"] == "Msini"
+    assert proxima["eq_temp_provenance"] == "modelled"
+    assert proxima["in_hz"] is True
+    assert payload["provenance"]["dataset_release"].startswith("UEP exoplanet snapshot")
+    assert payload["provenance"]["delivery_release"] == "TEST"
+    assert "color" not in payload["provenance"]["derived_fields"]
+    assert "color" in payload["provenance"]["render_fields"]
+    assert payload["provenance"]["render_confidence"] == "illustrative"
+
+
+def test_habitable_zone_status_is_unknown_when_inputs_are_missing(monkeypatch):
+    incomplete = exoplanets._sample().head(1).copy()
+    incomplete["pl_orbsmax"] = None
+    monkeypatch.setattr(exoplanets, "_sample", lambda: incomplete)
+
+    planet = exoplanets.build_payload("TEST", prefer_live=False)["systems"][0]["planets"][0]
+
+    assert planet["in_hz"] is None
+
+
 def test_dwarf_planets_present():
     p = solar_system.build_payload("TEST")
     dwarfs = [b for b in p["planets"] if b.get("category") == "dwarf"]
@@ -185,9 +226,14 @@ def test_black_hole_payload():
     p = blackholes.build_payload("TEST")
     assert len(p["objects"]) == 2
     assert p["provenance"]["credit"].startswith("Event Horizon Telescope")
+    assert p["provenance"]["visualisation_mode"] == "mesh"  # real-time approximation, not a ray-traced observation
+    assert p["provenance"]["render_source_type"] == "derived"
     sgr = next(o for o in p["objects"] if o["name"] == "Sgr A*")
     # Schwarzschild radius of a 4.3e6 Msun BH is ~1.27e7 km.
     assert 1.0e7 < sgr["schwarzschild_km"] < 1.5e7
+    assert 4.5 < sgr["shadow_diameter_rs"] < 5.8
+    assert "schematic" in p["provenance"]["note"].lower()
+    assert "validated real-time" not in p["provenance"]["note"].lower()
 
 
 def test_cmb_payload():
@@ -195,6 +241,9 @@ def test_cmb_payload():
     assert p["layer"] == "cmb"
     assert p["provenance"]["source_type"] == "observed"
     assert p["provenance"]["render_source_type"] == "procedural"
+    assert p["fact_provenance"]["temperature"] == "observed"
+    for field in ("redshift", "emitted", "light_travel", "comoving_distance"):
+        assert p["fact_provenance"][field] == "derived"
     assert "2.72" in p["facts"]["temperature"] and p["palette"]["cold"]
 
 
@@ -211,6 +260,12 @@ def test_resolved_galaxies_payload():
     assert p["provenance"]["render_source_type"] == "procedural"
     m31 = next(o for o in p["objects"] if o["catalogue"] == "M31")
     assert m31["morphology"] == "spiral" and m31["distance_mly"] > 2
+    assert "billion-solar-mass" not in m31["central_bh"]["note"]
+    m33 = next(o for o in p["objects"] if o["catalogue"] == "M33")
+    assert m33["central_bh"]["status"] == "upper_limit"
+    assert m33["central_bh"]["detected"] is False
+    assert m33["central_bh"]["mass_upper_limit_msun"] == 3000
+    assert "mass_msun" not in m33["central_bh"]
     morphs = {o["morphology"] for o in p["objects"]}
     assert {"spiral", "barred_spiral", "elliptical", "edge_on"}.issubset(morphs)
 
@@ -231,6 +286,8 @@ def test_nebula_payload():
     assert p["provenance"]["render_source_type"] == "procedural"
     orion = next(o for o in p["objects"] if o["catalogue"] == "M42")
     assert orion["distance_ly"] == 1344 and orion["palette"]["core"]
+    assert orion["render_star_sprites"] == 220
+    assert "star_count" not in orion
 
 
 @pytest.mark.skipif(not (DELIVERY / "nebulae.json").exists(), reason="run pipeline first")
@@ -275,5 +332,7 @@ def test_manifest_declares_cosmology_and_release():
     import json
     m = json.loads((DELIVERY / "manifest.json").read_text())
     assert m["cosmology"] == coords.COSMOLOGY_VERSION
-    assert m["dataset_release"]
+    assert m["dataset_release"] in {"Gaia DR3", "UEP procedural star sample v1"}
+    assert m["delivery_release"]
+    assert m["dataset_release"] != m["delivery_release"]
     assert m["source_mode"] in ("gaia", "sample")
