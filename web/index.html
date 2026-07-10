@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Universe Experience Platform</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#030711" />
+<meta name="description" content="A provenance-aware, cinematic atlas of the observable universe." />
+<title>Universe Experience Platform — Luminous Atlas</title>
+<link rel="icon" href="./favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" />
-<link rel="stylesheet" href="./styles.css?v=50" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<link rel="stylesheet" href="./styles.css?v=62" />
 <script type="importmap">
 {
   "imports": {
@@ -17,230 +20,252 @@
 }
 </script>
 </head>
-<body>
-  <canvas id="scene"></canvas>
-  <div id="vignette"></div>
-  <div id="fade"></div>
-  <div id="lbTop"></div><div id="lbBottom"></div>
-  <div id="labels"></div>
+<body class="intro-active">
+  <a class="skip-link" href="#scene">Skip to universe viewport</a>
+  <canvas id="scene" tabindex="0" aria-label="Interactive three-dimensional universe viewport. Use the scale navigator or keyboard shortcuts to explore."></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+  <div id="fade" aria-hidden="true"></div>
+  <div id="lbTop" aria-hidden="true"></div><div id="lbBottom" aria-hidden="true"></div>
+  <div id="labels" aria-hidden="true"></div>
+  <svg id="routeOverlay" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true">
+    <path id="routeGhost" d="M 510 650 C 520 520, 685 445, 610 310" />
+    <path id="routePath" d="M 510 650 C 520 520, 685 445, 610 310" />
+    <circle id="routeOrigin" cx="510" cy="650" r="4" />
+    <circle id="routeTarget" cx="610" cy="310" r="5" />
+  </svg>
+  <div id="routeCallout" aria-hidden="true"><span>Camera vector</span><b id="routeDestination">New target</b></div>
 
-  <!-- Scale ladder -->
-  <div id="layers" class="panel">
-    <button class="layer-btn active" data-layer="solar">☉ Solar System<small>10⁰ AU</small></button>
-    <button class="layer-btn" data-layer="exo">🪐 Exoplanets<small>10² pc</small></button>
-    <button class="layer-btn" data-layer="stars">✦ Stellar<small>10³ pc</small></button>
-    <button class="layer-btn" data-layer="nebula">🌫 Nebulae<small>10³ ly</small></button>
-    <button class="layer-btn" data-layer="galaxies">🌀 Galaxies<small>10⁵ ly</small></button>
-    <button class="layer-btn" data-layer="cosmic">🌌 Cosmic Web<small>10⁸ ly</small></button>
-    <button class="layer-btn" data-layer="cmb">🔥 CMB<small>10¹⁰ ly</small></button>
-    <button class="layer-btn" data-layer="bh">⚫ Black Holes<small>horizon</small></button>
-    <button class="layer-btn" data-layer="wh">🕳 Wormhole<small>theory</small></button>
+  <header id="observatoryHeader">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true">UEP</span>
+      <span class="brand-copy"><b>Luminous Atlas</b><small>Observation-first universe</small></span>
+    </div>
+    <div class="view-heading" aria-live="polite">
+      <span id="headerLayerName">Solar System</span>
+      <small id="headerLayerMode">Heliocentric field · JPL-derived</small>
+    </div>
+    <div class="header-actions">
+      <span id="renderInfo" class="render-status">WebGL</span>
+      <button id="mobileInfoBtn" class="mobile-only" type="button" aria-expanded="false" aria-controls="hud">Field notes</button>
+      <button id="mobileControlsBtn" class="mobile-only" type="button" aria-expanded="false" aria-controls="controlDeck">Controls</button>
+    </div>
+  </header>
+
+  <nav id="layers" aria-label="Universe scale navigator">
+    <div class="scale-rail" aria-hidden="true"></div>
+    <button class="layer-btn active" type="button" data-layer="solar" aria-pressed="true"><span class="station">01</span><span>Solar System</span><small>AU</small></button>
+    <button class="layer-btn" type="button" data-layer="exo" aria-pressed="false"><span class="station">02</span><span>Exoplanets</span><small>AU</small></button>
+    <button class="layer-btn" type="button" data-layer="stars" aria-pressed="false"><span class="station">03</span><span>Stellar field</span><small>pc</small></button>
+    <button class="layer-btn" type="button" data-layer="nebula" aria-pressed="false"><span class="station">04</span><span>Nebulae</span><small>ly</small></button>
+    <button class="layer-btn" type="button" data-layer="galaxies" aria-pressed="false"><span class="station">05</span><span>Galaxies</span><small>kly</small></button>
+    <button class="layer-btn" type="button" data-layer="cosmic" aria-pressed="false"><span class="station">06</span><span>Cosmic web</span><small>Mly</small></button>
+    <button class="layer-btn" type="button" data-layer="cmb" aria-pressed="false"><span class="station">07</span><span>First light</span><small>Gly</small></button>
+    <button class="layer-btn" type="button" data-layer="bh" aria-pressed="false"><span class="station">08</span><span>Black holes</span><small>Rₛ</small></button>
+    <button class="layer-btn" type="button" data-layer="wh" aria-pressed="false"><span class="station">09</span><span>Wormhole</span><small>theory</small></button>
+  </nav>
+
+  <div id="search" class="panel" role="search">
+    <label class="sr-only" for="uniSearch">Search the universe</label>
+    <span class="search-glyph" aria-hidden="true"></span>
+    <input id="uniSearch" type="search" autocomplete="off" placeholder="Search Saturn, TRAPPIST-1, M31 or Sgr A*" aria-controls="uniResults" aria-autocomplete="list" />
+    <div id="uniResults" role="listbox" aria-label="Universe search results"></div>
   </div>
 
-  <!-- Side zoom scalar -->
-  <div id="zoom" class="panel">
-    <button id="zoomIn" title="Zoom in">+</button>
-    <input type="range" id="zoomSlider" min="0" max="100" value="50" />
-    <button id="zoomOut" title="Zoom out">−</button>
-    <div id="scaleReadout" class="scale">—</div>
-  </div>
-
-  <!-- Universal search -->
-  <div id="search" class="panel">
-    <input id="uniSearch" type="text" autocomplete="off" placeholder="🔍 Search the universe…  (Saturn · TRAPPIST-1 · M31 · Sgr A*)" />
-    <div id="uniResults"></div>
-  </div>
-
-  <!-- HUD -->
-  <div id="hud" class="panel">
+  <aside id="hud" class="panel" aria-label="Current layer field notes">
+    <button id="hudClose" class="mobile-close" type="button" aria-label="Close field notes">×</button>
+    <div class="panel-kicker">Field notes</div>
     <h1>Universe Experience Platform</h1>
     <div class="sub" id="layerName">solar system</div>
+    <div id="evidenceStatus" class="evidence-status" data-tone="derived"><span></span><b>Derived</b></div>
     <table id="meta"></table>
     <div id="layerDesc" class="desc"></div>
-    <div id="renderInfo" class="tag"></div>
-  </div>
+  </aside>
 
-  <!-- Solar controls -->
-  <div id="solarControls" class="panel controls">
-    <div class="time">
-      <button id="playPause">⏸ Pause</button>
-      <button id="nowBtn">⦿ Now</button>
+  <aside id="controlDeck" class="panel" aria-label="Layer controls">
+    <button id="controlDeckClose" class="mobile-close" type="button" aria-label="Close layer controls">×</button>
+    <div class="deck-header"><span>Observatory controls</span><small id="controlLayerName">Solar System</small></div>
+
+    <div id="solarControls" class="controls">
+      <div class="time">
+        <button id="playPause" type="button">Pause time</button>
+        <button id="nowBtn" type="button">Set to now</button>
+      </div>
+      <div id="dateLabel" class="date">—</div>
+      <label class="rng">Time speed <span id="speedVal">1×</span>
+        <input type="range" id="speed" min="-7" max="7" step="0.1" value="2" /></label>
+      <label><input type="checkbox" id="ssLabels" checked /> Object labels</label>
+      <label><input type="checkbox" id="ssOrbits" checked /> Orbital paths</label>
+      <label><input type="checkbox" id="ssBright" /> Reveal dark sides</label>
+      <label><input type="checkbox" id="trueScale" /> Linear orbital distances</label>
+      <div class="desc muted">Body diameters stay exaggerated for visibility in both distance modes.</div>
+      <div class="jump" id="planetJump" aria-label="Jump to Solar System body"></div>
     </div>
-    <div id="dateLabel" class="date">—</div>
-    <label class="rng">Time speed <span id="speedVal">1×</span>
-      <input type="range" id="speed" min="-7" max="7" step="0.1" value="2" /></label>
-    <label><input type="checkbox" id="ssLabels" checked /> Labels</label>
-    <label><input type="checkbox" id="ssOrbits" checked /> Orbit paths</label>
-    <label><input type="checkbox" id="ssBright" /> Bright lighting (see dark sides)</label>
-    <label><input type="checkbox" id="trueScale" /> True distance scale</label>
-    <div class="jump" id="planetJump"></div>
-  </div>
 
-  <!-- Exoplanet controls -->
-  <div id="exoControls" class="panel controls hidden">
-    <label class="rng">System
-      <select id="exoSystem"></select></label>
-    <div id="exoSummary" class="desc"></div>
-    <div class="legend-row"><span class="dot" style="background:#4fae6a;box-shadow:0 0 8px #4fae6a"></span> Habitable zone</div>
-    <label><input type="checkbox" id="exoSpin" checked /> Animate orbits</label>
-  </div>
-
-  <!-- Star controls -->
-  <div id="starControls" class="panel controls hidden">
-    <label><input type="checkbox" id="toggleConfidence" /> Colour by confidence</label>
-    <label><input type="checkbox" id="toggleUncertainty" checked /> Show distance uncertainty</label>
-    <label class="rng">Point size <input type="range" id="pointSize" min="0.3" max="4" step="0.1" value="1.6" /></label>
-    <div class="search">
-      <input type="text" id="searchBox" placeholder="Search a star (e.g. Canopus)…" />
-      <button id="searchBtn">Go</button>
+    <div id="exoControls" class="controls hidden">
+      <label class="rng">System<select id="exoSystem"></select></label>
+      <div id="exoSummary" class="desc"></div>
+      <div class="legend-row"><span class="dot hz"></span> Conservative habitable zone</div>
+      <label><input type="checkbox" id="exoSpin" checked /> Animate orbital phase</label>
     </div>
-    <div id="searchResults"></div>
+
+    <div id="starControls" class="controls hidden">
+      <label><input type="checkbox" id="toggleConfidence" /> Colour by confidence</label>
+      <label><input type="checkbox" id="toggleUncertainty" checked /> Show distance uncertainty</label>
+      <label class="rng">Point size <input type="range" id="pointSize" min="0.3" max="4" step="0.1" value="1.6" /></label>
+      <div class="search-inline">
+        <label class="sr-only" for="searchBox">Search stars</label>
+        <input type="search" id="searchBox" placeholder="Search Gaia sources" />
+        <button id="searchBtn" type="button">Search</button>
+      </div>
+      <div id="searchResults"></div>
+    </div>
+
+    <div id="cosmicControls" class="controls hidden">
+      <div class="desc" id="cosmicSummary"></div>
+      <label class="rng">Galaxy glow <input type="range" id="galSize" min="0.4" max="3" step="0.1" value="1" /></label>
+      <div class="ramp"><span>near</span><div class="bar"></div><span>far</span></div>
+      <div class="legend-row muted">Colour encodes measured or modelled redshift.</div>
+    </div>
+
+    <div id="galaxyControls" class="controls hidden">
+      <label><input type="checkbox" id="galaxyField" /> Comparative galaxy field</label>
+      <label class="rng" id="galaxyPickRow">Galaxy<select id="galaxySelect"></select></label>
+      <div id="galaxySummary" class="desc"></div>
+      <div class="legend-row"><span class="dot black-hole"></span> Published central black-hole constraints</div>
+      <div class="desc muted">Distances, sizes and types are measured; stellar distributions are declared procedural priors.</div>
+    </div>
+
+    <div id="nebulaControls" class="controls hidden">
+      <label class="rng">Nebula<select id="nebulaSelect"></select></label>
+      <div id="nebulaSummary" class="desc"></div>
+      <div class="desc muted">Distance and size are measured; gas structure and render particles are illustrative.</div>
+    </div>
+
+    <div id="cmbControls" class="controls hidden">
+      <div id="cmbSummary" class="desc"></div>
+      <div class="ramp"><span>cold</span><div class="bar cmb-ramp"></div><span>hot</span></div>
+      <div class="legend-row muted">Colour represents a synthetic temperature-fluctuation field.</div>
+      <div class="desc muted">Temperature and anisotropy amplitude are observed; redshift, age and distance use a cosmological model. The visible mottling is not the Planck map.</div>
+    </div>
+
+    <div id="bhControls" class="controls hidden">
+      <label class="rng">Object<select id="bhSelect"></select></label>
+      <div id="bhSummary" class="desc"></div>
+      <div class="legend-row"><span class="dot accretion"></span> EHT-anchored schematic</div>
+      <div class="desc muted">Measured shadow scale anchors this stylised viewport; it is not a ray-traced prediction or EHT image reconstruction.</div>
+    </div>
+
+    <div id="whControls" class="controls hidden">
+      <div class="desc"><b>Morris–Thorne traversable wormhole</b> — distinct from the non-traversable Einstein–Rosen bridge.</div>
+      <div class="legend-row"><span class="dot theoretical"></span> Modelled lensing around the throat</div>
+      <div class="desc muted">Theoretical visualisation only. No wormhole has ever been observed.</div>
+    </div>
+  </aside>
+
+  <div id="zoom" class="panel">
+    <span class="zoom-label">View scale</span>
+    <button id="zoomOut" type="button" aria-label="Zoom out">−</button>
+    <label class="sr-only" for="zoomSlider">Viewport scale</label>
+    <input type="range" id="zoomSlider" min="0" max="100" value="50" />
+    <button id="zoomIn" type="button" aria-label="Zoom in">+</button>
+    <div id="scaleReadout" class="scale" aria-live="polite">—</div>
   </div>
 
-  <!-- Cosmic controls -->
-  <div id="cosmicControls" class="panel controls hidden">
-    <div class="desc" id="cosmicSummary"></div>
-    <label class="rng">Galaxy glow <input type="range" id="galSize" min="0.4" max="3" step="0.1" value="1" /></label>
-    <div class="ramp"><span>near</span><div class="bar"></div><span>far</span></div>
-    <div class="legend-row muted">colour = redshift (recession distance)</div>
+  <div id="legend" class="panel hidden" aria-label="Scientific evidence legend">
+    <div class="legend-row"><span class="dot measured"></span> Measured catalogue value</div>
+    <div class="legend-row"><span class="dot inferred"></span> Derived from measurements</div>
+    <div class="legend-row"><span class="dot illustrative"></span> Illustrative prior</div>
   </div>
 
-  <!-- Galaxy controls -->
-  <div id="galaxyControls" class="panel controls hidden">
-    <label><input type="checkbox" id="galaxyField" /> Show all galaxies together</label>
-    <label class="rng" id="galaxyPickRow">Galaxy
-      <select id="galaxySelect"></select></label>
-    <div id="galaxySummary" class="desc"></div>
-    <div class="legend-row"><span class="dot" style="background:#ffd27a;box-shadow:0 0 8px #ffd27a"></span> central black hole</div>
-    <div class="desc muted">Star distribution &amp; 3-D layout are illustrative; distance, size, type &amp; BH mass are measured.</div>
-  </div>
-
-  <!-- Nebula controls -->
-  <div id="nebulaControls" class="panel controls hidden">
-    <label class="rng">Nebula
-      <select id="nebulaSelect"></select></label>
-    <div id="nebulaSummary" class="desc"></div>
-    <div class="desc muted">Gas volume is an illustrative procedural prior; distance &amp; size are measured.</div>
-  </div>
-
-  <!-- CMB controls -->
-  <div id="cmbControls" class="panel controls hidden">
-    <div id="cmbSummary" class="desc"></div>
-    <div class="ramp"><span>cold</span><div class="bar" style="background:linear-gradient(90deg,#1a2f7a,#4a8fd6,#e8e8e8,#e8a33a,#b5202a)"></div><span>hot</span></div>
-    <div class="legend-row muted">colour = temperature fluctuation (~±200 µK)</div>
-    <div class="desc muted">You are at the centre, looking out at the oldest light in the universe.</div>
-  </div>
-
-  <!-- Black-hole controls -->
-  <div id="bhControls" class="panel controls hidden">
-    <label class="rng">Object
-      <select id="bhSelect"></select></label>
-    <div id="bhSummary" class="desc"></div>
-    <div class="legend-row"><span class="dot" style="background:#ff7a2f;box-shadow:0 0 8px #ff7a2f"></span> Doppler-beamed accretion disk</div>
-    <div class="desc muted">Render is a validated approximation; parameters are EHT-measured.</div>
-  </div>
-
-  <!-- Wormhole controls -->
-  <div id="whControls" class="panel controls hidden">
-    <div class="desc"><b>Traversable wormhole</b> — an Einstein–Rosen bridge through spacetime.</div>
-    <div class="legend-row"><span class="dot" style="background:#9fc8ff;box-shadow:0 0 8px #9fc8ff"></span> starlight lensing around the throat</div>
-    <div class="desc muted">Purely THEORETICAL — no wormhole has ever been observed. This is a visualisation of the geometry predicted by general relativity, not data.</div>
-  </div>
-
-  <!-- Legends -->
-  <div id="legend" class="panel hidden">
-    <div class="legend-row"><span class="dot measured"></span> Measured (observed catalogue)</div>
-    <div class="legend-row"><span class="dot inferred"></span> Inferred / derived</div>
-    <div class="legend-row"><span class="dot illustrative"></span> Illustrative (procedural prior)</div>
-  </div>
-
-  <!-- Inspector -->
-  <div id="inspector" class="panel hidden">
-    <button id="closeInspector">×</button>
-    <h2 id="objName">—</h2>
+  <aside id="inspector" class="panel hidden" role="dialog" aria-modal="false" aria-labelledby="objName">
+    <button id="closeInspector" type="button" aria-label="Close object details">×</button>
     <div id="objType" class="sub"></div>
-    <button id="surfaceBtn" class="hidden">🛰 Surface view</button>
+    <h2 id="objName">—</h2>
+    <button id="surfaceBtn" type="button" class="hidden">Enter surface orbit</button>
     <table id="objTable"></table>
     <div id="objNote" class="note"></div>
     <div id="objStory"></div>
     <div id="objCredit" class="credit"></div>
-  </div>
+  </aside>
 
-  <!-- Guided tour + credits -->
-  <div id="tourBar" class="panel">
-    <button id="tourBtn" aria-label="Start or stop the guided tour">▶ Guided tour</button>
-    <button id="dataBtn" title="Inspect the data (charts)" aria-label="Open data inspection charts">📊 Data</button>
-    <button id="creditsBtn" title="Data sources &amp; acknowledgements" aria-label="Show data sources and acknowledgements">ⓘ Credits</button>
-    <button id="photoBtn" title="Photo mode — hide the interface (P)" aria-label="Photo mode">📷</button>
-    <button id="soundBtn" title="Ambient sound on / off" aria-label="Toggle ambient sound">🔊</button>
-    <button id="helpBtn" title="Keyboard shortcuts &amp; accessibility" aria-label="Keyboard shortcuts and accessibility">⌨</button>
-    <button id="themeBtn" title="Light / dark interface" aria-label="Toggle light or dark interface">☀</button>
-  </div>
+  <nav id="tourBar" class="panel" aria-label="Experience tools">
+    <button id="tourBtn" type="button" aria-label="Start or stop the guided tour"><span class="tool-icon">▶</span><span>Guided tour</span></button>
+    <button id="dataBtn" type="button" aria-label="Open data inspection charts"><span class="tool-icon">⌁</span><span>Data</span></button>
+    <button id="creditsBtn" type="button" aria-label="Show sources and acknowledgements"><span class="tool-icon">ⓘ</span><span>Sources</span></button>
+    <button id="photoBtn" type="button" aria-label="Enter photo mode"><span class="tool-icon">□</span><span>Photo</span></button>
+    <button id="soundBtn" type="button" aria-label="Toggle ambient sound"><span class="tool-icon">◖</span><span>Sound</span></button>
+    <button id="helpBtn" type="button" aria-label="Open keyboard shortcuts and accessibility"><span class="tool-icon">?</span><span>Help</span></button>
+    <button id="themeBtn" type="button" aria-label="Toggle light or dark interface"><span class="tool-icon">◐</span><span>Theme</span></button>
+  </nav>
 
-  <div id="datapanel" class="panel hidden">
-    <button id="closeData" aria-label="Close">×</button>
+  <section id="datapanel" class="panel hidden" role="dialog" aria-modal="false" aria-labelledby="dataTitle">
+    <button id="closeData" type="button" aria-label="Close data inspection">×</button>
+    <div class="panel-kicker">Evidence view</div>
     <h2 id="dataTitle">Data inspection</h2>
-    <canvas id="dataCanvas"></canvas>
+    <canvas id="dataCanvas" role="img" aria-label="Scientific data chart"></canvas>
     <div id="dataCaption" class="desc"></div>
-  </div>
+  </section>
 
-  <div id="help" class="panel hidden" role="dialog" aria-label="Keyboard shortcuts">
-    <button id="closeHelp" aria-label="Close">×</button>
-    <h2>Keyboard &amp; accessibility</h2>
+  <section id="help" class="panel hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <button id="closeHelp" type="button" aria-label="Close keyboard shortcuts">×</button>
+    <div class="panel-kicker">Accessibility</div>
+    <h2 id="helpTitle">Keyboard controls</h2>
     <table>
-      <tr><td class="k"><kbd>1</kbd>…<kbd>9</kbd></td><td>jump to a layer</td></tr>
-      <tr><td class="k"><kbd>←</kbd> <kbd>→</kbd></td><td>previous / next layer</td></tr>
-      <tr><td class="k"><kbd>T</kbd></td><td>guided tour</td></tr>
-      <tr><td class="k"><kbd>Space</kbd></td><td>play / pause motion</td></tr>
-      <tr><td class="k"><kbd>R</kbd></td><td>reduced motion on / off</td></tr>
-      <tr><td class="k"><kbd>C</kbd></td><td>credits</td></tr>
-      <tr><td class="k"><kbd>P</kbd></td><td>photo mode (hide interface)</td></tr>
-      <tr><td class="k"><kbd>S</kbd></td><td>save a snapshot (in photo mode)</td></tr>
-      <tr><td class="k"><kbd>Esc</kbd></td><td>close panels / stop tour</td></tr>
+      <tr><td class="k"><kbd>1</kbd>…<kbd>9</kbd></td><td>Jump to a scale layer</td></tr>
+      <tr><td class="k"><kbd>←</kbd> <kbd>→</kbd></td><td>Previous or next layer</td></tr>
+      <tr><td class="k"><kbd>T</kbd></td><td>Guided tour</td></tr>
+      <tr><td class="k"><kbd>Space</kbd></td><td>Pause or resume orbital time</td></tr>
+      <tr><td class="k"><kbd>R</kbd></td><td>Reduced motion</td></tr>
+      <tr><td class="k"><kbd>C</kbd></td><td>Sources</td></tr>
+      <tr><td class="k"><kbd>P</kbd></td><td>Photo mode</td></tr>
+      <tr><td class="k"><kbd>Esc</kbd></td><td>Close open panels</td></tr>
     </table>
-    <label style="margin-top:12px;display:flex;gap:8px;align-items:center;color:var(--text)"><input type="checkbox" id="reducedMotion" /> Reduced motion (stop decorative animation)</label>
+    <label class="motion-toggle"><input type="checkbox" id="reducedMotion" /> Reduce camera and decorative motion</label>
+  </section>
+
+  <div id="caption" class="hidden" role="status" aria-live="polite"><span id="captionStep"></span><span id="captionText"></span></div>
+  <div id="lower3" aria-hidden="true"><div class="l3k">Field lock</div><div id="l3name"></div><div id="l3type"></div></div>
+
+  <div id="photoHint">
+    <button id="phSave" type="button">Save viewport PNG</button>
+    <button id="phExit" type="button">Exit photo mode</button>
   </div>
-  <div id="caption" class="hidden"><span id="captionStep"></span><span id="captionText"></span></div>
 
-  <!-- cinematic lower-third (object titles) -->
-  <div id="lower3"><div class="l3k">now viewing</div><div id="l3name"></div><div id="l3type"></div></div>
-
-  <!-- photo-mode hint -->
-  <div id="photoHint"><span id="phSave">S — save image</span><span id="phExit">P — exit photo mode</span></div>
-
-  <div id="credits" class="panel hidden">
-    <button id="closeCredits">×</button>
-    <h2>Data sources &amp; acknowledgements</h2>
+  <section id="credits" class="panel hidden" role="dialog" aria-modal="true" aria-labelledby="creditsTitle">
+    <button id="closeCredits" type="button" aria-label="Close sources">×</button>
+    <div class="panel-kicker">Provenance ledger</div>
+    <h2 id="creditsTitle">Sources &amp; acknowledgements</h2>
     <div id="creditsBody"></div>
-  </div>
+  </section>
 
-  <div id="grain"></div>
+  <div id="grain" aria-hidden="true"></div>
+  <div id="announcer" class="sr-only" aria-live="polite"></div>
 
-  <!-- Cinematic intro -->
-  <div id="intro">
+  <section id="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle">
+    <div class="intro-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="ibox">
-      <div class="ikicker">A scientifically grounded atlas of everything</div>
-      <h1>THE UNIVERSE</h1>
-      <p>From our Sun to the first light of the cosmos — every object real,
-         every distance measured, every render honest about what is observed,
-         derived or illustrative.</p>
+      <div class="ikicker"><span></span> Luminous Atlas / Field 01</div>
+      <h1 id="introTitle">Enter the<br><em>observable universe.</em></h1>
+      <p>Move from planetary orbits to first light through nine scientific lenses. Every measurement, derivation and visual prior stays identified as you travel.</p>
+      <div class="evidence-key" aria-label="Evidence types"><span>Measured</span><span>Derived</span><span>Modelled</span></div>
       <div class="ibtns">
-        <button id="enterBtn">✦ &nbsp;Begin exploration</button>
-        <button id="introTour">▶ &nbsp;Guided tour</button>
+        <button id="enterBtn" type="button">Begin free exploration</button>
+        <button id="introTour" type="button">Take the guided flight</button>
       </div>
-      <div class="ifoot">Gaia DR3 · NASA/JPL · NASA Exoplanet Archive · 2MRS · EHT · Planck</div>
+      <div class="ifoot">Gaia · NASA/JPL · NASA Exoplanet Archive · 2MRS · EHT · Planck</div>
     </div>
-  </div>
+  </section>
 
-  <div id="loading">
+  <div id="loading" role="status" aria-live="polite">
     <div class="boot">
-      <h1>UNIVERSE</h1>
-      <div class="bootsub">Experience Platform</div>
+      <div class="boot-mark">UEP</div>
+      <h1>Luminous Atlas</h1>
+      <div class="bootsub">Calibrating scientific layers</div>
       <div class="bar"><i></i></div>
-      <span>Loading the universe…</span>
+      <span>Building the local universe…</span>
     </div>
   </div>
 
-  <script type="module" src="./app.js?v=50"></script>
+<script type="module" src="./app.js?v=65"></script>
 </body>
 </html>

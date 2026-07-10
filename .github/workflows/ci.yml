@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main, master ]
@@ -29,7 +32,61 @@ jobs:
         run: python backend/pipeline.py --no-live --release "CI-${{ github.sha }}"
 
       - name: Run tests (skip live-archive tests)
-        run: python -m pytest -q -m "not network"
+        run: >-
+          python -m pytest -q -m "not network"
+          --cov=backend --cov-branch --cov-report=term-missing
+          --cov-fail-under=80
 
-      - name: Verify golden scenes
-        run: python -m pytest -q tests/test_golden.py
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.14"
+          cache: npm
+
+      - name: Install backend and frontend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          npm ci
+
+      - name: Run frontend lint, type and unit coverage gates
+        run: npm run check
+
+      - name: Build deterministic browser payloads
+        run: python backend/pipeline.py --no-live --release "CI-browser-${{ github.sha }}"
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser journeys
+        run: npm run test:e2e
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Dockerfile
+        run: docker build --check .
+
+      - name: Build production image
+        run: docker build -t uep-ci:${{ github.sha }} .
+
+      - name: Verify container readiness
+        run: |
+          docker run -d --name uep-ci -p 8765:8000 uep-ci:${{ github.sha }}
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8765/api/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs uep-ci
+          exit 1

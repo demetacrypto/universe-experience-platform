@@ -1,6 +1,7 @@
 // Procedural, copyright-free planet / sun / ring textures generated on a canvas.
 // Original fractal-noise generation — no external image assets.
 import * as THREE from "three";
+import { resolveProceduralTextureSize } from "./scene-utils.js";
 
 function mulberry32(seed) {
   return function () {
@@ -41,9 +42,8 @@ function hexToRgb(h) {
 }
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
-const W = 1024, H = 512;
-
-export function makePlanetTexture(name, type, palette, seed = 1) {
+export function makePlanetTexture(name, type, palette, seed = 1, textureOptions = {}) {
+  const { width: W, height: H } = resolveProceduralTextureSize(textureOptions);
   const cv = document.createElement("canvas");
   cv.width = W; cv.height = H;
   const ctx = cv.getContext("2d");
@@ -125,7 +125,8 @@ export function makePlanetTexture(name, type, palette, seed = 1) {
   return { map: tex, bump };
 }
 
-export function makeSunTexture(palette, seed = 7) {
+export function makeSunTexture(palette, seed = 7, textureOptions = {}) {
+  const { width: W, height: H } = resolveProceduralTextureSize(textureOptions);
   const cv = document.createElement("canvas");
   cv.width = W; cv.height = H;
   const ctx = cv.getContext("2d");

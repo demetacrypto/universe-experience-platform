@@ -18,15 +18,15 @@ echo "==> Installing backend dependencies into ${VENV}"
 "$PY" -m pip install --upgrade pip -q
 "$PY" -m pip install -r backend/requirements.txt
 
-echo "==> Running ingestion pipeline (live Gaia DR3, sample fallback)"
-"$PY" backend/pipeline.py --release "DR3-$(date +%Y.%m.%d)"
+echo "==> Running ingestion pipeline (prefer live archives, labelled fallback)"
+"$PY" backend/pipeline.py --release "UEP-$(date +%Y.%m.%d)"
 
 echo "==> Verifying delivery data exists"
 test -f data/delivery/scene.json && echo "    scene.json OK ($(wc -c < data/delivery/scene.json) bytes)" \
   || { echo "    ERROR: data/delivery/scene.json missing"; exit 1; }
 
 echo "==> Running QA harness"
-"$PY" -m pytest tests/ -q
+"$PY" -m pytest tests/ -q -m "not network" --cov=backend --cov-branch --cov-fail-under=80
 
 echo "==> Freeing port ${PORT} if a stale server is holding it"
 lsof -ti "tcp:${PORT}" | xargs kill -9 2>/dev/null || true

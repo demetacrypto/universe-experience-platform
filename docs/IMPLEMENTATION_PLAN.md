@@ -85,13 +85,13 @@ partitioning; three-zone lake; QA harness. **Exit:** tests green, contracts fixe
 ### Phase 1 — Validated universe slice ✅ *(done in this repo)*
 Live Gaia DR3 ingestion (+offline fallback); curated Parquet + delivery tiles +
 scene bundle; FastAPI metadata/tile API; WebGPU-detecting Three.js client with
-provenance & uncertainty UI; SIMBAD-style name resolver. **Exit:** a real,
-provenance-correct stellar neighbourhood you can fly through and inspect.
+provenance & uncertainty UI; SIMBAD-style name resolver. **Exit:** a live Gaia
+or explicitly procedural offline stellar neighbourhood you can fly through and inspect.
 
 > **Prototype status:** the multi-archive **adapter framework** (SIMBAD/NED/VizieR/MAST with a
 > federated resolver), **API security** (rate limiting, security headers, object-level rights),
-> **CI + golden scenes**, and **Docker/compose deploy** are now scaffolded as working code
-> (43 tests). What remains in Phases 2/5 is breadth (more archive adapters & the Zarr/graph
+> **CI + golden scenes**, and **Docker/compose deploy** are now scaffolded as working code.
+> What remains in Phases 2/5 is breadth (more archive adapters & the Zarr/graph
 > stores) and depth (Redis-backed limits, signed URLs, full WCAG audit, FinOps automation).
 
 ### Phase 2 — Multi-archive backbone & extragalactic layer (≈ months 2–6)

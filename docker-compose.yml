@@ -7,12 +7,6 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # set to "live" to refresh from real archives (Gaia/2MRS/exoplanets) on start
+      # "live" requires every archive; "prefer-live" permits labelled fallbacks.
       UEP_INGEST: "sample"
-    volumes:
-      # persist the curated/delivery data lake across restarts
-      - uep-data:/app/data
     restart: unless-stopped
-
-volumes:
-  uep-data:

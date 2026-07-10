@@ -1,8 +1,6 @@
-// Wormhole layer (THEORETICAL): a traversable Einstein–Rosen bridge rendered
-// as a gravitationally-lensed throat — a swirling, lensed starfield inside a
-// bright Einstein ring. This is a visualisation of the geometry predicted by
-// general relativity, clearly declared THEORETICAL: no wormhole has ever been
-// observed. (Einstein & Rosen 1935; Morris & Thorne 1988.)
+// Wormhole layer (THEORETICAL): a Morris–Thorne traversable-wormhole model
+// rendered as a stylised, gravitationally lensed throat. This is distinct from
+// the non-traversable Einstein–Rosen bridge. No wormhole has been observed.
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { glowTexture } from "./solarsystem.js";
@@ -11,15 +9,16 @@ const R = 6;   // throat radius (scene units)
 
 export const WORMHOLE = {
   name: "Wormhole",
-  long_name: "Traversable wormhole (Einstein–Rosen bridge)",
+  long_name: "Morris–Thorne traversable wormhole",
   facts: {
     status: "THEORETICAL — never observed",
-    origin: "Einstein & Rosen (1935)",
-    traversable: "Morris–Thorne (1988) — needs exotic matter",
+    origin: "Morris & Thorne (1988)",
+    traversable: "Model requires exotic negative-energy matter",
+    distinction: "Unlike the Einstein–Rosen bridge (1935), which is non-traversable",
     throat: "A bridge between two regions of spacetime",
     note: "A hypothetical shortcut through spacetime. The render shows starlight lensing around the throat — a visualisation of the mathematics, not an observation.",
   },
-  credit: "Geometry: Einstein & Rosen (1935); Morris & Thorne (1988). Render is a pure simulation.",
+  credit: "Traversable model: Morris & Thorne (1988). Einstein–Rosen (1935) describes a distinct non-traversable bridge. Render is a pure simulation.",
 };
 
 export class WormholeScene {
@@ -59,7 +58,7 @@ export class WormholeScene {
           vec3 scol = mix(vec3(0.65, 0.78, 1.0), vec3(1.0, 0.85, 0.65), tint);
           vec3 col = scol * star * (1.2 + 0.8 * sin(uTime * 1.5 + h * 40.0));
           col += vec3(0.010, 0.018, 0.045);                    // deep space floor
-          // blue-white lensed rim (the Einstein ring seen edge-on)
+          // blue-white stylised lensing rim
           float rim = pow(1.0 - mu, 3.6);
           col += vec3(0.55, 0.75, 1.0) * rim * 1.15;
           // faint violet caustic just inside the rim
@@ -72,7 +71,7 @@ export class WormholeScene {
     this.group.add(throat);
     this.pickables.push(throat);
 
-    // --- camera-facing Einstein ring ---
+    // --- camera-facing stylised lensing rim ---
     this.ringMat = new THREE.ShaderMaterial({
       uniforms: { uTime: { value: 0 } },
       transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,

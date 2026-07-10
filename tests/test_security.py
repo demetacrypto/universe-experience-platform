@@ -29,15 +29,29 @@ def test_rate_limiter_is_per_client():
     assert rl.allow("b")                    # different client has its own bucket
 
 
+def test_rate_limiter_bounds_client_bucket_storage():
+    rl = RateLimiter(rate=0.0, burst=1, max_buckets=2)
+    assert rl.allow("a") and rl.allow("b") and rl.allow("c")
+    assert len(rl._buckets) == 2
+    assert "a" not in rl._buckets
+
+
 def test_rights_gate():
-    assert is_public("public") and is_public(None) and is_public("")
+    assert is_public("public") and is_public("open")
+    assert not is_public(None) and not is_public("")
     assert not is_public("restricted") and not is_public("exclusive_access")
     assert rights_ok({"data_rights": "public"})
-    assert rights_ok({})                    # missing -> treated as public
+    assert rights_ok({"dataRights": "open"})
+    assert not rights_ok({})                # missing rights fail closed
     assert not rights_ok({"data_rights": "restricted"})
+    # Schema aliases must never let a conflicting restriction fail open.
+    assert not rights_ok({"data_rights": "public", "dataRights": "restricted"})
+    assert not rights_ok({"data_rights": "restricted", "dataRights": "public"})
+    assert rights_ok({"data_rights": "public", "dataRights": None})
 
 
 def test_security_headers_present():
-    for h in ("X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy"):
+    for h in ("Content-Security-Policy", "X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy"):
         assert h in SECURITY_HEADERS
     assert SECURITY_HEADERS["X-Content-Type-Options"] == "nosniff"
+    assert "object-src 'none'" in SECURITY_HEADERS["Content-Security-Policy"]

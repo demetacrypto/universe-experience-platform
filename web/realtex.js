@@ -6,7 +6,8 @@
 import * as THREE from "three";
 
 const TJ = "https://threejs.org/examples/textures/planets/";
-const TX = "https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/";
+// Immutable upstream revision: reproducible assets and no mutable-branch supply-chain drift.
+const TX = "https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@3de707594b1178ba32c62199bf29efdf90f59cf0/images/";
 
 const loader = new THREE.TextureLoader();
 loader.setCrossOrigin("anonymous");

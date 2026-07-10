@@ -4,6 +4,7 @@
 // mottled anisotropy pattern is a representative procedural Gaussian field.
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+import { resolveEquirectangularTextureSize } from "./scene-utils.js";
 
 function mulberry32(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function makeNoise(seed, G = 256) {
@@ -29,41 +30,66 @@ function ramp(pal, t) { // 5-stop cold->hot temperature ramp
   return mix(warm, hot, (t - 0.75) / 0.25);
 }
 
+function makePaletteLookup(palette, size = 256) {
+  const lookup = new Uint8Array(size * 3);
+  for (let i = 0; i < size; i++) {
+    const color = ramp(palette, i / (size - 1));
+    lookup[i * 3] = color[0];
+    lookup[i * 3 + 1] = color[1];
+    lookup[i * 3 + 2] = color[2];
+  }
+  return lookup;
+}
+
 export class CMBScene {
-  constructor(data) {
+  // textureOptions: { quality: "low" | "medium" | "high", width?, height? }
+  constructor(data, textureOptions = {}) {
     this.data = data;
+    this.textureSize = resolveEquirectangularTextureSize(textureOptions);
     this.group = new THREE.Group();
     this.t = 0;
     this._build();
   }
 
   _texture() {
-    const W = 2048, H = 1024, cv = document.createElement("canvas");
+    const { width: W, height: H } = this.textureSize;
+    const cv = document.createElement("canvas");
     cv.width = W; cv.height = H;
     const ctx = cv.getContext("2d"), img = ctx.createImageData(W, H), d = img.data;
     const n1 = makeNoise(7, 256), n2 = makeNoise(91, 256);
+    const palette = makePaletteLookup(this.data.palette);
+    const lowCost = W <= 512;
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const u = x / W, v = y / H;
         // multi-scale Gaussian-random-field-like fluctuations (acoustic-ish)
-        let g = 0.5 + 0.95 * (fbm(n1, u * 18, v * 18, 6) - 0.5) + 0.5 * (fbm(n2, u * 42, v * 42, 5) - 0.5);
+        let g = 0.5
+          + 0.95 * (fbm(n1, u * 18, v * 18, lowCost ? 4 : 6) - 0.5)
+          + 0.5 * (fbm(n2, u * 42, v * 42, lowCost ? 3 : 5) - 0.5);
         // push contrast away from mid (more saturated cold/hot spots, less white wash)
         g = 0.5 + (g - 0.5) * 1.45;
         g = Math.max(0, Math.min(1, g));
-        const c = ramp(this.data.palette, g);
+        const paletteIndex = Math.round(g * 255) * 3;
         const i = (y * W + x) * 4;
-        d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+        d[i] = palette[paletteIndex];
+        d[i + 1] = palette[paletteIndex + 1];
+        d[i + 2] = palette[paletteIndex + 2];
+        d[i + 3] = 255;
       }
     }
     ctx.putImageData(img, 0, 0);
     const tex = new THREE.CanvasTexture(cv);
-    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = 1;
     return tex;
   }
 
   _build() {
     const sphere = new THREE.Mesh(
-      new THREE.SphereGeometry(400, 96, 96),
+      new THREE.SphereGeometry(400, 64, 64),
       new THREE.MeshBasicMaterial({ map: this._texture(), side: THREE.BackSide }));
     sphere.userData = { kind: "cmb", data: this.data };
     this.group.add(sphere);

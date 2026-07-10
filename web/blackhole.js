@@ -1,12 +1,21 @@
-// Black-hole showcase (L5): a cinematic, EHT-faithful approximation — a dark
-// shadow, a bright lensed photon-ring/Einstein-ring halo that wraps the shadow,
-// and a temperature-graded, Doppler-beamed accretion disk seen edge-on. The
-// parameters are EHT-measured; the render is a validated approximation.
+// Black-hole showcase (L5): an EHT-anchored schematic — a dark shadow, a
+// stylised lensing ring and a temperature-graded accretion disk. Measured
+// parameters set the reference scale; this is not a GR ray-traced prediction
+// or a reconstruction of an EHT image.
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { glowTexture } from "./solarsystem.js";
+import { disposeObject3D } from "./scene-utils.js";
 
-const R = 2.6; // shadow radius (scene units ~ Schwarzschild radii)
+const FALLBACK_SHADOW_DIAMETER_RS = 5.2;
+
+export function shadowRadiusRs(object) {
+  const diameter = Number(object?.shadow_diameter_rs);
+  const normalizedDiameter = Number.isFinite(diameter) && diameter > 0
+    ? diameter
+    : FALLBACK_SHADOW_DIAMETER_RS;
+  return normalizedDiameter / 2;
+}
 
 export class BlackHoleScene {
   constructor(data) {
@@ -15,26 +24,31 @@ export class BlackHoleScene {
     this.group = new THREE.Group();
     this.index = 0;
     this.time = 0;
-    this.unitsPerRs = R;
+    // Scene coordinates are normalized directly to Schwarzschild radii.
+    this.unitsPerRs = 1;
+    this.shadowRadiusRs = FALLBACK_SHADOW_DIAMETER_RS / 2;
     this.build(0);
   }
 
   build(i) {
     this.index = i;
-    for (const c of [...this.group.children]) this.group.remove(c);
+    disposeObject3D(this.group);
+    this.group.clear();
     const o = this.objects[i];
+    const R = shadowRadiusRs(o);
+    this.shadowRadiusRs = R;
     const hot = new THREE.Color(o.disk_color_hot);
     const cool = new THREE.Color(o.disk_color_cool);
     const inner = new THREE.Color(0xdfeeff); // hot inner edge (relativistic blue-white)
 
-    // --- event horizon: pure black sphere ---
+    // --- apparent shadow silhouette (not the smaller event horizon) ---
     const horizon = new THREE.Mesh(new THREE.SphereGeometry(R, 96, 96),
       new THREE.MeshBasicMaterial({ color: 0x000000 }));
     horizon.userData = { kind: "blackhole", data: o };
     this.group.add(horizon);
     this.pickables = [horizon];
 
-    // --- photon / Einstein ring: thin, bright, camera-facing, Doppler-asymmetric ---
+    // --- stylised lensing ring: bright, camera-facing, Doppler-asymmetric ---
     const haloGeo = new THREE.RingGeometry(R * 1.0, R * 1.5, 256, 1);
     this.haloMat = new THREE.ShaderMaterial({
       uniforms: { uTime: { value: 0 }, uHot: { value: hot }, uCool: { value: cool }, uInner: { value: inner } },
@@ -45,8 +59,7 @@ export class BlackHoleScene {
         void main(){
           float r = length(vP);
           float ang = atan(vP.y, vP.x);
-          // thin bright Einstein ring hugging the shadow edge (no inner fill -> shadow stays black)
-          // razor-thin lensed photon ring hugging the shadow (golden-white)
+          // Stylised bright lensing band outside the shadow (no inner fill).
           float ering = smoothstep(${(R*1.0).toFixed(2)}, ${(R*1.04).toFixed(2)}, r) * smoothstep(${(R*1.32).toFixed(2)}, ${(R*1.08).toFixed(2)}, r);
           float beam = 0.5 + 0.9 * pow(0.5 + 0.5*sin(ang - 1.2), 2.0);
           beam *= 0.88 + 0.12 * sin(uTime * 2.6 + ang * 7.0);   // turbulent flicker
@@ -151,6 +164,7 @@ export class BlackHoleScene {
   }
 
   update(dt, camera) {
+    const R = this.shadowRadiusRs;
     this.time += dt;
     this.haloMat.uniforms.uTime.value = this.time;
     this.diskMat.uniforms.uTime.value = this.time;
@@ -164,6 +178,6 @@ export class BlackHoleScene {
     if (camera) this.halo.lookAt(camera.position);   // halo always faces the camera
   }
 
-  flyTarget() { return { position: new THREE.Vector3(0, 0, 0), radius: R * 3 }; }
+  flyTarget() { return { position: new THREE.Vector3(0, 0, 0), radius: this.shadowRadiusRs * 3 }; }
   names() { return this.objects.map(o => `${o.name} — ${o.facts.location.split("(")[0].trim()}`); }
 }

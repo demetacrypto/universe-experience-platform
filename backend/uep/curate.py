@@ -16,7 +16,9 @@ import pandas as pd
 from . import coords, healpix_index, crossmatch
 from .provenance import (
     SourceType, ConfidenceClass, VisualisationMode, Provenance, credit_for,
+    source_metadata,
 )
+from .security import public_rights_mask
 
 DELIVERY_ORDER = 3          # HEALPix order for delivery tiles (nside = 8 -> 768 cells)
 
@@ -61,16 +63,35 @@ def curate(df: pd.DataFrame, source_mode: str, release: str) -> pd.DataFrame:
     is_observed = source_mode == "gaia"
     src = SourceType.OBSERVED if is_observed else SourceType.PROCEDURAL
     conf = ConfidenceClass.MEASURED if is_observed else ConfidenceClass.ILLUSTRATIVE
-    cred = credit_for("gaia") if is_observed else {"credit": "UEP procedural prior",
-                                                   "license": "CC0 (synthetic)", "ack": ""}
+    source_key = "gaia" if is_observed else "sample_stars"
+    meta = source_metadata(source_key)
+    cred = credit_for("gaia") if is_observed else {
+        "credit": "UEP procedural prior",
+        "license": meta["license"],
+        "ack": "",
+    }
     df["source_type"] = src.value
     df["confidence"] = conf.value
     df["visualisation_mode"] = VisualisationMode.POINT.value
     df["distance_method"] = "parallax" if is_observed else "assumed_prior"
     df["measurement_epoch"] = 2016.0 if is_observed else None
-    df["dataset_release"] = release
+    if "dataset_release" not in df:
+        df["dataset_release"] = meta["dataset_release"]
+    else:
+        df["dataset_release"] = df["dataset_release"].fillna(meta["dataset_release"])
+    df["delivery_release"] = release
     df["credit"] = cred["credit"]
     df["license"] = cred["license"]
+    # Preserve explicit upstream restrictions. Only records without a rights
+    # value inherit the registry decision for this known source mode.
+    if "data_rights" not in df:
+        if "dataRights" in df:
+            df["data_rights"] = df["dataRights"]
+        else:
+            df["data_rights"] = meta["data_rights"]
+    elif "dataRights" in df:
+        df["data_rights"] = df["data_rights"].fillna(df["dataRights"])
+    df["data_rights"] = df["data_rights"].fillna(meta["data_rights"])
 
     # Per-source distance uncertainty (fractional) where parallax error exists.
     if "parallax_error" in df and "parallax" in df:
@@ -88,18 +109,26 @@ def write_curated_parquet(df: pd.DataFrame, out_path: Path) -> None:
 
 
 def write_delivery_tiles(df: pd.DataFrame, delivery_dir: Path, source_mode: str,
-                         release: str) -> dict:
+                         release: str, archive_accessed_at: str | None = None) -> dict:
     """Emit compact JSON tiles (one per HEALPix cell) + a manifest.
 
     Tile format is intentionally small and flat for fast client decode:
     parallel arrays of position, colour, magnitude, and a provenance index.
     """
+    public = df[public_rights_mask(df)].copy()
+    if public.empty:
+        raise ValueError("Delivery contains no explicitly public records")
+
     delivery_dir.mkdir(parents=True, exist_ok=True)
     tiles_dir = delivery_dir / "tiles"
     tiles_dir.mkdir(exist_ok=True)
+    # A release is a complete snapshot. Remove cells from older releases before
+    # writing the current manifest so stale or newly restricted rows cannot leak.
+    for old_tile in tiles_dir.glob("tile_*.json"):
+        old_tile.unlink()
 
     manifest_cells = []
-    for cell, g in df.groupby("healpix"):
+    for cell, g in public.groupby("healpix"):
         positions, colors, mags, names, ids, dist, dunc = [], [], [], [], [], [], []
         for _, r in g.iterrows():
             positions += [round(float(r.gx_pc), 4), round(float(r.gy_pc), 4), round(float(r.gz_pc), 4)]
@@ -128,12 +157,12 @@ def write_delivery_tiles(df: pd.DataFrame, delivery_dir: Path, source_mode: str,
     # Combined scene bundle: one fetch for the whole layer (flat arrays).
     scene = {
         "frame": "Galactic heliocentric cartesian (parsecs)",
-        "count": int(len(df)),
+        "count": int(len(public)),
         "positions": [], "colors": [], "mag": [], "bp_rp": [],
         "confidence": [], "source_type": [],
         "name": [], "source_id": [], "distance_pc": [], "distance_unc_pc": [],
     }
-    for _, r in df.iterrows():
+    for _, r in public.iterrows():
         scene["positions"] += [round(float(r.gx_pc), 4), round(float(r.gy_pc), 4), round(float(r.gz_pc), 4)]
         cr, cg, cb = _bp_rp_to_rgb(r.get("bp_rp"))
         scene["colors"] += [cr, cg, cb]
@@ -150,6 +179,8 @@ def write_delivery_tiles(df: pd.DataFrame, delivery_dir: Path, source_mode: str,
             None if (du is None or (isinstance(du, float) and math.isnan(du))) else round(float(du), 4))
     (delivery_dir / "scene.json").write_text(json.dumps(scene))
 
+    source_key = "gaia" if source_mode == "gaia" else "sample_stars"
+    meta = source_metadata(source_key)
     cred = credit_for("gaia") if source_mode == "gaia" else {"credit": "UEP procedural prior", "ack": ""}
     manifest = {
         "platform": "Universe Experience Platform",
@@ -158,16 +189,20 @@ def write_delivery_tiles(df: pd.DataFrame, delivery_dir: Path, source_mode: str,
         "cosmology": coords.COSMOLOGY_VERSION,
         "healpix_order": DELIVERY_ORDER,
         "source_mode": source_mode,             # 'gaia' (observed) or 'sample' (procedural)
-        "dataset_release": release,
-        "total_sources": int(len(df)),
+        "dataset_release": meta["dataset_release"],
+        "delivery_release": release,
+        "archive_accessed_at": archive_accessed_at if source_mode == "gaia" else None,
+        "data_rights": meta["data_rights"],
+        "license": meta["license"],
+        "total_sources": int(len(public)),
         "credit": cred["credit"],
         "acknowledgement": cred.get("ack", ""),
         "cells": manifest_cells,
         "bbox_pc": {
-            "min": [float(df.gx_pc.min()), float(df.gy_pc.min()), float(df.gz_pc.min())],
-            "max": [float(df.gx_pc.max()), float(df.gy_pc.max()), float(df.gz_pc.max())],
+            "min": [float(public.gx_pc.min()), float(public.gy_pc.min()), float(public.gz_pc.min())],
+            "max": [float(public.gx_pc.max()), float(public.gy_pc.max()), float(public.gz_pc.max())],
         },
-        "confidence_breakdown": df["confidence"].value_counts().to_dict(),
+        "confidence_breakdown": public["confidence"].value_counts().to_dict(),
     }
     (delivery_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
     return manifest

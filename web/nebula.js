@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { glowTexture } from "./solarsystem.js";
+import { disposeObject3D } from "./scene-utils.js";
 
 const R = 18; // scene radius of the cloud
 
@@ -46,7 +47,8 @@ export class NebulaScene {
 
   build(i) {
     this.index = i;
-    for (const ch of [...this.group.children]) this.group.remove(ch);
+    disposeObject3D(this.group);
+    this.group.clear();
     const neb = this.objects[i];
     const rng = mulberry32(neb.name.length * 1337 + 7);
     const core = new THREE.Color(neb.palette.core), mid = new THREE.Color(neb.palette.mid), outer = new THREE.Color(neb.palette.outer);
@@ -88,7 +90,8 @@ export class NebulaScene {
     this.group.add(this.cloud);
 
     // embedded young stars
-    const sN = neb.star_count, sp = new Float32Array(sN * 3), ss = new Float32Array(sN);
+    const sN = neb.render_star_sprites;
+    const sp = new Float32Array(sN * 3), ss = new Float32Array(sN);
     for (let s = 0; s < sN; s++) {
       const v = new THREE.Vector3(gauss(rng), gauss(rng), gauss(rng)).multiplyScalar(R * 0.45);
       sp[s*3] = v.x; sp[s*3+1] = v.y; sp[s*3+2] = v.z; ss[s] = rng() < 0.1 ? 3.5 : 1.4;

@@ -2,7 +2,7 @@
 """End-to-end ingestion pipeline orchestrator (raw -> curated -> delivery).
 
 Usage:
-    python backend/pipeline.py --limit 6000 --release DR3-2024.1
+    python backend/pipeline.py --limit 6000 --release UEP-2026.07.10
     python backend/pipeline.py --no-live          # force sample fallback
 """
 from __future__ import annotations
@@ -23,20 +23,27 @@ DATA = Path(__file__).resolve().parents[1] / "data"
 def main() -> int:
     ap = argparse.ArgumentParser(description="UEP ingestion pipeline")
     ap.add_argument("--limit", type=int, default=6000, help="max sources to ingest")
-    ap.add_argument("--release", default=None, help="immutable dataset release tag")
-    ap.add_argument("--no-live", action="store_true", help="skip live archive, use sample")
+    ap.add_argument("--release", default=None, help="local UEP delivery/build label")
+    ap.add_argument("--no-live", action="store_true", help="skip live archives, use deterministic fallbacks")
+    ap.add_argument("--strict-live", action="store_true",
+                    help="require Gaia, Exoplanet Archive and 2MRS live ingests")
     ap.add_argument("--use-cache", action="store_true",
                     help="reuse previously ingested raw parquet if present")
     args = ap.parse_args()
+    if args.no_live and args.strict_live:
+        ap.error("--no-live and --strict-live are mutually exclusive")
+    if args.strict_live and args.use_cache:
+        ap.error("--strict-live and --use-cache are mutually exclusive")
 
-    release = args.release or f"UEP-{datetime.now(timezone.utc):%Y.%m.%d}"
+    delivery_release = args.release or f"UEP-{datetime.now(timezone.utc):%Y.%m.%d}"
 
     print(f"[pipeline] === Universe Experience Platform ingestion ===")
-    print(f"[pipeline] release={release} limit={args.limit} live={not args.no_live}")
+    print(f"[pipeline] delivery_release={delivery_release} limit={args.limit} live={not args.no_live}")
 
     # 1. RAW: load catalogue (cache -> live Gaia -> sample fallback)
     import pandas as pd
     cached = sorted((DATA / "raw").glob("catalogue_*.parquet")) if (DATA / "raw").exists() else []
+    archive_accessed_at = None
     if args.use_cache and cached:
         raw_path = cached[0]
         df = pd.read_parquet(raw_path)
@@ -44,58 +51,74 @@ def main() -> int:
         print(f"[pipeline] reusing cached raw zone: {raw_path.name} ({len(df)} rows)")
     else:
         df, source_mode = ingest_gaia.load_catalogue(prefer_live=not args.no_live, limit=args.limit)
+        if source_mode == "gaia":
+            archive_accessed_at = datetime.now(timezone.utc).isoformat()
         raw_path = DATA / "raw" / f"catalogue_{source_mode}.parquet"
         raw_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(raw_path, index=False)
+    if args.strict_live and source_mode != "gaia":
+        raise RuntimeError("Strict live ingest required Gaia, but the archive fell back")
     print(f"[pipeline] raw zone:      {len(df)} rows  -> {raw_path.name} (mode={source_mode})")
 
     # 2. CURATED: provenance + coords + HEALPix
-    cur = curate.curate(df, source_mode, release)
+    cur = curate.curate(df, source_mode, delivery_release)
     curated_path = DATA / "curated" / "stars.parquet"
     curate.write_curated_parquet(cur, curated_path)
     print(f"[pipeline] curated zone:  {len(cur)} rows  -> {curated_path.name}")
 
     # 3. DELIVERY: client tiles + manifest
-    manifest = curate.write_delivery_tiles(cur, DATA / "delivery", source_mode, release)
+    manifest = curate.write_delivery_tiles(
+        cur,
+        DATA / "delivery",
+        source_mode,
+        delivery_release,
+        archive_accessed_at=archive_accessed_at,
+    )
     print(f"[pipeline] delivery zone: {len(manifest['cells'])} HEALPix tiles, "
           f"{manifest['total_sources']} sources")
 
     # 3b. Solar System layer (L0): Keplerian ephemerides + body data
-    ss = solar_system.write_payload(DATA / "delivery", release)
+    ss = solar_system.write_payload(DATA / "delivery", delivery_release)
     n_planets = sum(1 for p in ss['planets'] if p.get('category') == 'planet')
     n_dwarf = sum(1 for p in ss['planets'] if p.get('category') == 'dwarf')
     print(f"[pipeline] solar system: {n_planets} planets, {n_dwarf} dwarf planets, "
-          f"{sum(len(p['moons']) for p in ss['planets'])} moons")
+          f"{sum(len(p['moons']) for p in ss['planets'])} rendered moons")
 
     # 3c. Exoplanet layer: NASA Exoplanet Archive systems
-    ex = exoplanets.write_payload(DATA / "delivery", release)
+    ex = exoplanets.write_payload(
+        DATA / "delivery", delivery_release, prefer_live=not args.no_live)
+    if args.strict_live and ex["source_mode"] != "archive":
+        raise RuntimeError("Strict live ingest required the NASA Exoplanet Archive, but it fell back")
     print(f"[pipeline] exoplanets:   {len(ex['systems'])} systems, "
           f"{sum(s['n_planets'] for s in ex['systems'])} planets (mode={ex['source_mode']})")
 
     # 3d. Cosmological layer: galaxy redshift cosmic web
-    gw = galaxies.write_payload(DATA / "delivery", release)
+    gw = galaxies.write_payload(
+        DATA / "delivery", delivery_release, prefer_live=not args.no_live)
+    if args.strict_live and gw["source_mode"] != "2mrs":
+        raise RuntimeError("Strict live ingest required 2MRS, but VizieR fell back")
     print(f"[pipeline] cosmic web:   {gw['count']} galaxies (mode={gw['source_mode']})")
 
     # 3e. Black-hole showcase layer (L5): EHT-anchored reference objects
-    bh = blackholes.write_payload(DATA / "delivery", release)
+    bh = blackholes.write_payload(DATA / "delivery", delivery_release)
     print(f"[pipeline] black holes:  {len(bh['objects'])} objects "
           f"({', '.join(o['name'] for o in bh['objects'])})")
 
     # 3f. Nebula showcase layer (L5, volumetric)
-    neb = nebulae.write_payload(DATA / "delivery", release)
+    neb = nebulae.write_payload(DATA / "delivery", delivery_release)
     print(f"[pipeline] nebulae:      {len(neb['objects'])} objects "
           f"({', '.join(o['name'] for o in neb['objects'])})")
 
     # 3g. Resolved-galaxy layer (L3)
-    rg = resolved_galaxies.write_payload(DATA / "delivery", release)
+    rg = resolved_galaxies.write_payload(DATA / "delivery", delivery_release)
     print(f"[pipeline] galaxies:     {len(rg['objects'])} objects "
           f"({', '.join(o['name'] for o in rg['objects'])})")
 
     # 3h. Cosmic Microwave Background (edge of the observable universe)
-    cmb.write_payload(DATA / "delivery", release)
+    cmb.write_payload(DATA / "delivery", delivery_release)
     print(f"[pipeline] cmb:          surface of last scattering (z≈1089, 2.725 K)")
     print(f"[pipeline] confidence:    {manifest['confidence_breakdown']}")
-    print(f"[pipeline] DONE. Open web/index.html or run the API to view.")
+    print("[pipeline] DONE. Run the FastAPI server to view the module-based web client.")
     return 0
 
 

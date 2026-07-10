@@ -28,6 +28,9 @@ class NedAdapter(ArchiveAdapter):
             return None
         try:
             from astroquery.ipac.ned import Ned
+            # Astroquery's NED client is a module-level instance; set the same
+            # explicit bound used by the federated resolver before each query.
+            Ned.TIMEOUT = timeout
             tbl = Ned.query_object(name)
             if tbl is None or len(tbl) == 0:
                 return None

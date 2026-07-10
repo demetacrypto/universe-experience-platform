@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 
 from . import coords
-from .provenance import SourceType, ConfidenceClass, VisualisationMode
+from .provenance import SourceType, ConfidenceClass, VisualisationMode, source_metadata
 
 C_KMS = 299792.458
 
@@ -58,8 +59,10 @@ def _procedural(n=8000, seed=11):
     return pts, zz, "procedural"
 
 
-def build_payload(release: str, max_points: int = 9000) -> dict:
-    got = fetch_2mrs()
+def build_payload(release: str, max_points: int = 9000,
+                  prefer_live: bool = True) -> dict:
+    """Build a 2MRS point cloud or a strict-offline procedural fallback."""
+    got = fetch_2mrs() if prefer_live else None
     if got is None:
         pts, z, mode = _procedural(max_points)
     else:
@@ -88,6 +91,7 @@ def build_payload(release: str, max_points: int = 9000) -> dict:
         colors += [round(0.55 + 0.45 * t, 3), round(0.7 - 0.35 * t, 3), round(0.95 - 0.6 * t, 3)]
         redshifts.append(round(float(z[i]), 5))
 
+    source = source_metadata("2mrs" if mode == "2mrs" else "cosmic_prior")
     return {
         "layer": "cosmic_web",
         "frame": "Comoving Cartesian (Mpc), heliocentric",
@@ -101,17 +105,39 @@ def build_payload(release: str, max_points: int = 9000) -> dict:
         "provenance": {
             "source_type": (SourceType.OBSERVED.value if mode == "2mrs" else SourceType.PROCEDURAL.value),
             "confidence": (ConfidenceClass.MEASURED.value if mode == "2mrs" else ConfidenceClass.ILLUSTRATIVE.value),
+            "derived_source_type": (SourceType.DERIVED.value if mode == "2mrs"
+                                    else SourceType.PROCEDURAL.value),
+            "derived_confidence": (ConfidenceClass.INFERRED.value if mode == "2mrs"
+                                   else ConfidenceClass.ILLUSTRATIVE.value),
+            "derived_fields": (["positions", "comoving_distance_mpc", "colors"]
+                               if mode == "2mrs" else ["positions", "redshift", "colors"]),
+            "ingest_mode": ("live_archive" if mode == "2mrs" else "procedural_fallback"),
             "visualisation_mode": VisualisationMode.POINT.value,
-            "distance_method": "redshift→comoving (Planck18)",
+            "distance_method": ("redshift→comoving (Planck18)" if mode == "2mrs"
+                                else "procedural_filament_prior"),
             "credit": ("2MASS Redshift Survey (Huchra et al. 2012), via VizieR/CDS"
                        if mode == "2mrs" else "UEP procedural cosmic web"),
-            "dataset_release": release,
+            "note": (
+                "Sky coordinates and radial velocities are observed 2MRS values; redshift, "
+                "comoving distance, Cartesian positions and render colours are derived using "
+                "the declared cosmology."
+                if mode == "2mrs"
+                else "Positions, redshifts and colours are a declared illustrative filament prior."
+            ),
+            "dataset_release": source["dataset_release"],
+            "delivery_release": release,
+            "archive_accessed_at": (
+                datetime.now(timezone.utc).isoformat() if mode == "2mrs" else None
+            ),
+            "data_rights": source["data_rights"],
+            "license": source["license"],
         },
     }
 
 
-def write_payload(delivery_dir: Path, release: str) -> dict:
-    payload = build_payload(release)
+def write_payload(delivery_dir: Path, release: str,
+                  prefer_live: bool = True) -> dict:
+    payload = build_payload(release, prefer_live=prefer_live)
     delivery_dir.mkdir(parents=True, exist_ok=True)
     (delivery_dir / "cosmic_web.json").write_text(json.dumps(payload))
     return payload

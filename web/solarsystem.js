@@ -6,7 +6,8 @@ import * as THREE from "three";
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { makePlanetTexture, makeSunTexture, makeRingTexture } from "./textures.js";
 import { atmosphereMaterial, animatedCoronaMaterial, sunSurfaceMaterial } from "./shaders.js";
-import { TEX, load as loadTex, hasReal } from "./realtex.js";
+import { TEX, load as loadTex } from "./realtex.js";
+import { disposeObject3D, markSharedTexture } from "./scene-utils.js";
 
 const J2000 = 2451545.0;
 const DEG = Math.PI / 180;
@@ -64,7 +65,7 @@ export function glowTexture() {
   g.addColorStop(0.7, "rgba(255,160,80,0.045)");
   g.addColorStop(1.0, "rgba(255,150,70,0)");
   ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
-  _glowTex = new THREE.CanvasTexture(cv);
+  _glowTex = markSharedTexture(new THREE.CanvasTexture(cv));
   return _glowTex;
 }
 
@@ -83,8 +84,15 @@ function latLonToVec3(lat, lon, r) {
 }
 
 export class SolarSystem {
-  constructor(data) {
+  constructor(data, {
+    proceduralTextureQuality = "medium",
+    detailMaps = true,
+    geometryQuality = "high",
+  } = {}) {
     this.data = data;
+    this.proceduralTextureQuality = proceduralTextureQuality;
+    this.detailMaps = detailMaps;
+    this.geometrySegments = geometryQuality === "high" ? 96 : 48;
     this.group = new THREE.Group();
     this.trueScale = false;
     this.brightMode = false;
@@ -100,17 +108,36 @@ export class SolarSystem {
 
     // --- Sun ---
     const sunR = sunSceneRadius(this.trueScale);
-    const sunTex = TEX.Sun ? loadTex(TEX.Sun.map) : makeSunTexture(d.sun.palette);
+    const textureOptions = { quality: this.proceduralTextureQuality };
+    const sunTex = TEX.Sun ? loadTex(TEX.Sun.map) : makeSunTexture(d.sun.palette, 7, textureOptions);
+    const detailedSunMaterial = this.detailMaps ? sunSurfaceMaterial(sunTex) : null;
+    const sunMaterial = detailedSunMaterial
+      ?? new THREE.MeshBasicMaterial({ map: sunTex, color: 0xffd58a });
     const sun = new THREE.Mesh(
-      new THREE.SphereGeometry(sunR, 96, 96),
-      sunSurfaceMaterial(sunTex)
+      new THREE.SphereGeometry(sunR, this.geometrySegments, this.geometrySegments),
+      sunMaterial,
     );
-    this._sunMat = sun.material;
+    this._sunMat = detailedSunMaterial;
     sun.userData = { kind: "sun", data: { name: "Sun", facts: d.sun.facts, radius_km: d.sun.radius_km } };
-    const corona = new THREE.Mesh(new THREE.SphereGeometry(sunR * 1.6, 48, 48),
-      animatedCoronaMaterial("#ffcf6b"));
-    this._corona = corona.material;
-    this._corona.uniforms.uR.value = sunR * 1.6;
+    const coronaSegments = Math.max(24, Math.round(this.geometrySegments / 2));
+    const detailedCoronaMaterial = this.detailMaps ? animatedCoronaMaterial("#ffcf6b") : null;
+    const corona = detailedCoronaMaterial
+      ? new THREE.Mesh(
+        new THREE.SphereGeometry(sunR * 1.6, coronaSegments, coronaSegments),
+        detailedCoronaMaterial,
+      )
+      : new THREE.Mesh(
+        new THREE.SphereGeometry(sunR * 1.12, coronaSegments, coronaSegments),
+        new THREE.MeshBasicMaterial({
+          color: 0xffc45e,
+          transparent: true,
+          opacity: 0.12,
+          side: THREE.BackSide,
+          depthWrite: false,
+        }),
+      );
+    this._corona = detailedCoronaMaterial;
+    if (this._corona) this._corona.uniforms.uR.value = sunR * 1.6;
     this._t = 0;
     // camera-facing glare halo — reads as real lens glow at any distance
     const glare = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -156,17 +183,33 @@ export class SolarSystem {
       const tx = TEX[p.name];
       if (tx) {
         // real NASA-derived texture
-        mat = new THREE.MeshStandardMaterial({
-          map: loadTex(tx.map), roughness: gassy ? 1.0 : 0.92, metalness: 0.0 });
-        if (tx.bump) { mat.bumpMap = loadTex(tx.bump, { srgb: false }); mat.bumpScale = 0.04; }
-        if (tx.normal) { mat.normalMap = loadTex(tx.normal, { srgb: false }); mat.normalScale = new THREE.Vector2(0.8, 0.8); }
-        if (tx.specular) { mat.roughnessMap = loadTex(tx.specular, { srgb: false }); mat.metalness = 0.15; }
-        if (tx.lights) { mat.emissiveMap = loadTex(tx.lights); mat.emissive = new THREE.Color(0xffd27f); mat.emissiveIntensity = 1.1; }
+        const map = loadTex(tx.map);
+        mat = this.detailMaps
+          ? new THREE.MeshStandardMaterial({ map, roughness: gassy ? 1.0 : 0.92, metalness: 0.0 })
+          : new THREE.MeshBasicMaterial({ map });
+        if (this.detailMaps && tx.bump) { mat.bumpMap = loadTex(tx.bump, { srgb: false }); mat.bumpScale = 0.04; }
+        if (this.detailMaps && tx.normal) { mat.normalMap = loadTex(tx.normal, { srgb: false }); mat.normalScale = new THREE.Vector2(0.8, 0.8); }
+        if (this.detailMaps && tx.specular) { mat.roughnessMap = loadTex(tx.specular, { srgb: false }); mat.metalness = 0.15; }
+        if (this.detailMaps && tx.lights) { mat.emissiveMap = loadTex(tx.lights); mat.emissive = new THREE.Color(0xffd27f); mat.emissiveIntensity = 1.1; }
       } else {
-        const { map, bump } = makePlanetTexture(p.name, p.type, p.palette, p.name.length * 13 + 1);
-        mat = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 0.05, roughness: 0.95, metalness: 0.02 });
+        const { map, bump } = makePlanetTexture(
+          p.name,
+          p.type,
+          p.palette,
+          p.name.length * 13 + 1,
+          textureOptions,
+        );
+        mat = this.detailMaps
+          ? new THREE.MeshStandardMaterial({
+            map,
+            bumpMap: bump,
+            bumpScale: 0.05,
+            roughness: 0.95,
+            metalness: 0.02,
+          })
+          : new THREE.MeshBasicMaterial({ map });
       }
-      const surf = new THREE.Mesh(new THREE.SphereGeometry(pr, 96, 96), mat);
+      const surf = new THREE.Mesh(new THREE.SphereGeometry(pr, this.geometrySegments, this.geometrySegments), mat);
       surf.rotation.z = (p.tilt_deg || 0) * DEG;
       surf.userData = { kind: "planet", data: p };
       g.add(surf);
@@ -174,8 +217,8 @@ export class SolarSystem {
       if (p.landmarks && p.landmarks.length) this.landmarkMap[p.name] = this._addLandmarks(surf, pr, p.landmarks);
 
       // Earth: real cloud shell
-      if (tx && tx.clouds) {
-        const clouds = new THREE.Mesh(new THREE.SphereGeometry(pr * 1.015, 64, 64),
+      if (this.detailMaps && tx && tx.clouds) {
+        const clouds = new THREE.Mesh(new THREE.SphereGeometry(pr * 1.015, this.geometrySegments, this.geometrySegments),
           new THREE.MeshStandardMaterial({ map: loadTex(tx.clouds), transparent: true, opacity: 0.85,
             alphaMap: loadTex(tx.clouds, { srgb: false }), depthWrite: false, roughness: 1 }));
         g.add(clouds);
@@ -183,8 +226,8 @@ export class SolarSystem {
       }
 
       // atmosphere halo
-      if (p.atmosphere) {
-        const atm = new THREE.Mesh(new THREE.SphereGeometry(pr * 1.025, 64, 64),
+      if (this.detailMaps && p.atmosphere) {
+        const atm = new THREE.Mesh(new THREE.SphereGeometry(pr * 1.025, this.geometrySegments, this.geometrySegments),
           atmosphereMaterial(p.atmosphere, 0.55));
         g.add(atm);
       }
@@ -193,7 +236,7 @@ export class SolarSystem {
       if (p.rings) {
         const ringTex = (tx && tx.ring) ? loadTex(tx.ring) : makeRingTexture(p.rings, p.name.length + 2);
         const inner = pr * p.rings.inner, outer = pr * p.rings.outer;
-        const rg = new THREE.RingGeometry(inner, outer, 96, 1);
+        const rg = new THREE.RingGeometry(inner, outer, this.geometrySegments, 1);
         // radial UVs so the 1-D ring texture is sampled across the ring width
         const pos = rg.attributes.position, uv = rg.attributes.uv;
         for (let i = 0; i < pos.count; i++) {
@@ -215,9 +258,14 @@ export class SolarSystem {
       p.moons.forEach((m, i) => {
         const mr = Math.max(0.05, planetSceneRadius(m.radius_km, this.trueScale) * 0.5);
         const moonMat = (m.name === "Moon" && TEX.Moon)
-          ? new THREE.MeshStandardMaterial({ map: loadTex(TEX.Moon.map), roughness: 1 })
-          : new THREE.MeshStandardMaterial({ color: m.color, roughness: 1 });
-        const mm = new THREE.Mesh(new THREE.SphereGeometry(mr, 32, 32), moonMat);
+          ? (this.detailMaps
+            ? new THREE.MeshStandardMaterial({ map: loadTex(TEX.Moon.map), roughness: 1 })
+            : new THREE.MeshBasicMaterial({ map: loadTex(TEX.Moon.map) }))
+          : (this.detailMaps
+            ? new THREE.MeshStandardMaterial({ color: m.color, roughness: 1 })
+            : new THREE.MeshBasicMaterial({ color: m.color }));
+        const moonSegments = Math.max(16, Math.round(this.geometrySegments / 2));
+        const mm = new THREE.Mesh(new THREE.SphereGeometry(mr, moonSegments, moonSegments), moonMat);
         mm.userData = { kind: "moon", data: { ...m, parent: p.name }, sceneR: mr };
         // larger invisible click target so small, fast moons are easy to select
         const moonPick = new THREE.Mesh(new THREE.SphereGeometry(Math.max(mr * 3, 0.4), 10, 10),
@@ -233,9 +281,9 @@ export class SolarSystem {
 
       // orbit line
       const pts = [];
-      for (let k = 0; k <= 256; k++) {
-        const jd = J2000 + (k / 256) * (p.elements.L < 0 ? -365 : 365) * 50; // sweep enough to close
-        const [x, y, z] = planetPositionAU(p.elements, J2000 + (k / 256) * 365.25 * (p.distance_au ** 1.5));
+      const orbitSegments = this.geometrySegments === 96 ? 256 : 128;
+      for (let k = 0; k <= orbitSegments; k++) {
+        const [x, y, z] = planetPositionAU(p.elements, J2000 + (k / orbitSegments) * 365.25 * (p.distance_au ** 1.5));
         pts.push(eclToScene(x, y, z, this.trueScale));
       }
       const orbitLine = new THREE.LineLoop(
@@ -302,6 +350,33 @@ export class SolarSystem {
     }
   }
 
+  setBootPreview(on, { staged = false, onRevealBatch = null } = {}) {
+    this._previewRevealToken = (this._previewRevealToken || 0) + 1;
+    const token = this._previewRevealToken;
+    this.bootPreview = on;
+    if (!on && staged) {
+      const pending = [...this.planets];
+      const revealBatch = () => {
+        if (token !== this._previewRevealToken) return;
+        for (let i = 0; i < 2 && pending.length; i++) {
+          const rec = pending.shift();
+          rec.group.visible = true;
+          rec.orbitLine.visible = true;
+        }
+        if (typeof onRevealBatch === "function") onRevealBatch();
+        if (pending.length) requestAnimationFrame(revealBatch);
+        else if (this.belt) this.belt.visible = true;
+      };
+      requestAnimationFrame(revealBatch);
+      return;
+    }
+    for (const rec of this.planets) {
+      rec.group.visible = !on;
+      rec.orbitLine.visible = !on;
+    }
+    if (this.belt) this.belt.visible = !on;
+  }
+
   _applyLighting() {
     if (!this.ambient) return;
     if (this.brightMode) {        // even fill — see the whole planet, without washing out
@@ -319,10 +394,13 @@ export class SolarSystem {
     this.trueScale = on;
     // simplest correct approach: rebuild the scene graph
     const parent = this.group.parent;
-    this.group.removeFromParent();
+    const previousGroup = this.group;
+    previousGroup.removeFromParent();
+    disposeObject3D(previousGroup);
     this.group = new THREE.Group();
     this.planets = []; this.pickables = []; this.byName = {};
     this._build();
+    if (this.bootPreview) this.setBootPreview(true);
     if (parent) parent.add(this.group);
   }
 
