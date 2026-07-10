@@ -421,7 +421,7 @@ async def resolve(
         raise HTTPException(422, "Object name must contain a non-whitespace character.")
     try:
         await asyncio.wait_for(_resolver_slots.acquire(), timeout=RESOLVER_QUEUE_TIMEOUT_SECONDS)
-    except TimeoutError as exc:
+    except asyncio.TimeoutError as exc:
         raise HTTPException(503, "Name resolver is busy. Try again shortly.") from exc
 
     loop = asyncio.get_running_loop()
@@ -439,14 +439,18 @@ async def resolve(
             pass
 
     raw_future.add_done_callback(release_slot)
+    wrapped_future = asyncio.wrap_future(raw_future)
     try:
         r = await asyncio.wait_for(
-            asyncio.shield(asyncio.wrap_future(raw_future)),
+            asyncio.shield(wrapped_future),
             timeout=RESOLVER_RESPONSE_TIMEOUT_SECONDS,
         )
-    except TimeoutError as exc:
+    except asyncio.TimeoutError as exc:
         # The worker retains its semaphore slot until the archive call really
-        # exits, preventing timed-out work from growing an unbounded queue.
+        # exits, preventing timed-out work from growing an unbounded queue. The
+        # asyncio bridge is no longer needed and is cancelled so a late worker
+        # result cannot target a request loop that has already closed.
+        wrapped_future.cancel()
         raise HTTPException(504, "Name resolver timed out.") from exc
     if r is None:
         raise HTTPException(404, f"Could not resolve {name!r} against any archive.")
